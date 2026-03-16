@@ -1,0 +1,18 @@
+project_id,milestone_nr,name,date,status
+240-DCM103,1,Start-up project,2024-07-01,OK
+240-DCM103,2,Internal planning and organization finished - project execution model established and approved,2024-12-15,OK
+240-DCM103,3,Stage 2 report accepted - start stage 3,2024-12-15,OK
+240-DCM103,4,Stage 3 report finished,2025-07-03,OK
+240-DCM103,5,Business case presented to the Bulk investment committee,2025-10-30,OK
+240-DCM103,6,Business case established - presented to the Board for approval,2025-12-09,OK
+240-DCM103,7,Decision - go/no go for further project execution (contract signed with CTS),2026-02-04,OK
+240-DCM103,8,Detail design completed,2026-06-08,MIDLERTIDIG
+240-DCM103,9,Start-up at site,2025-11-03,OK
+240-DCM103,10,Shell and core finished - weather tight building,2026-08-03,MIDLERTIDIG
+240-DCM103,11,Power On,2026-10-16,MIDLERTIDIG
+240-DCM103,12,Commissioning level 3,2026-11-19,MIDLERTIDIG
+240-DCM103,13,Commissioning level 4,2026-12-03,MIDLERTIDIG
+240-DCM103,14,Commissioning level 5,2026-12-10,MIDLERTIDIG
+240-DCM103,15,White Space Level 1 Ready,2026-12-22,MIDLERTIDIG
+240-DCM103,17,White Space Level 2 Ready,2027-02-26,MIDLERTIDIG
+240-DCM103,18,Building handover,2027-03-01,MIDLERTIDIG

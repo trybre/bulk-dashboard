@@ -1,0 +1,48 @@
+project_id,issue_nr,problem,handling_plan,responsible,deadline
+240-DCM103,1,"Internal processes ongoing, has to be further agreed regarding employers requirements that we want implemented in the Stage 3 design","Update 01.05.2025: Latest schedule from T&T/WSP indicate stage 3 final report after Bulk review/commenting and re-issuing will be ready 20.06.2025. Millstone updated accordantly.
+
+Update 24.06.2025: Bulk review of Stage 3 design finalized, however WSP will need some time to update. Milestone shifted to 03.07.2025. Following activities also shifted.
+
+Update 17.07.2025: Stage 3 design updated after Bulk comments. 
+
+Update 26.08.25: Management decision making needed regarding way forward, ref. item 6 below - directly affecting our employers requirements (CTS can most likely not offer a BREEAM certified DCM suitable for a hyperscaler)",OJ,ASAP
+240-DCM103,2,Generators for phase 3 has now been ordered directly via PON after board approval,"Budget updated accordingly, see item 1 above - budget signed off by the Project owner on the 15/1-25. However, there is a need to revisit this again due to more general costs (precon activities) needing to be done - a new budget has been proposed that summarizes to:
+- Item 301: 2.0 mill
+- Item 302: 3.8 mill
+- Item 303: 14.5 mill.
+
+Not implemented yet, must be agreed and signed off by PO first - overdue
+
+Update 01.05.2025: In addition to the above we see internal reassures recording hours on the project above what was earlier estimated. Some caused by item 4 below, but more internal cost must be expected. Budget post 301 updated with NOK 1M - where is NOK 0.5 taken from external cost in post 302 - and NOK 0.5M is taken from the contingency post.
+
+Update 27.05.2025: Generator cost approved. Pre-construction cost further described in item 6 below.",RB,2025-03-15
+240-DCM103,3,"New legislative requirements from NVE implemented (Energikartlegging and demand for cost-benefit analysis) - will directly affect all datacenter projects from the 1st of April, how is unfortunately unclear per today","Potential risk we are now trying to handle via WSP BREEAM AP and Stine:
+1. NVE has implemented a new legislative requirement that affects all DCMs that receive > 2 MW electrical power - ""cost - benefit analyses""
+2. This is brand new and a lot of detail questions are still up in the air.
+
+This is a risk we are working to get a grip on (time and costs). Ola - WSP with support from Stine and input from Projects (HK, HC, TO) is working on this as we speak, the signs are positive - to be continued
+
+Update 27.05.2025: NVE have approved our Cost-benefit analyses and this is no longer a show stopper for start of construction.",HKO,2025-04-15
+240-DCM103,4,Assigned T&T Eng. manager has been removed due to underperforming,HC will take charge as Eng. manager for the rest of the Stage 3 phase - with any support from HK as needed,Info,
+240-DCM103,6,Stage 3 design and pre-construction budget increase,"There has been an increase of the Pre-construction and Stage 3 design budget driven by increased use of consultants and additional design tasks related to studies on various topics.
+Budget updated with new estimates from WSP and adjusted for 5% contingency on the generator purchase as agreed with Siv Avdal Hasle.
+However, budget still needs to be approved!
+
+Update 26.08.2025: We see that an increased use of external consultants for various tasks like planning & cost control have driven the cost on post 302 up significantly. New estimates pointing towards an overspend of NOK 1.3M, however this is just a best guess.  Budget updated. As the project now have moved over in a new phase (post stage 3) where Bulk needs to align on the way forward (build our DCM103 design, or go for a CTS design), there will be a need for additional funding moving forward.
+
+Update 02.102025: Still not received any input for a increased Pre-construction budget, but work with planning & costing of our original Bulk designed building has been put on hold (as the decision now is understood to be to move forward with CTS). We are still expecting some cost to come our way for work performed, but should be able to limit the losses moving forward.
+
+Update 31.10.2025: No input on an updated Pre-construction budget, but continue to work with evaluating CTS offer, BoD, plans, etc. and prepar for contract.",OJ,ASAP
+240-DCM103,7,Use of internal hours above expected for Stage 3,"There have been an extensive use of internal hours on this project and expect it to be caused by a need for close follow-up of external consultants. Budget post increased (taken from the projects contingency). It shall however be noted that the earlier estimate was intended for stage 3 only, and since this stage now is finalized there will be a need for an overall uplift of the project budget moving forward.",RB,ASAP
+240-DCM103,8,Need for a decision to be made for the build & contraction strategy,"Bulk do now have two possible options for this project, move forward with the Bulk/WSP design together with a group of local contractors (The MOV Collaboration) or get CTS to build a Pegasus type of building. Needs to be decided by Bulk management.
+
+Update 02.10.2025: It is understood that the way forward will be a design & Built contract with CTS, but have not received any clear conformation from management.",OJ,2025-08-26
+240-DCM103,9,CTS's ability to deliver good quality inside the given time frame,"With the understanding that it will be a CTS design & build solution (ref. item  above) there are concerns with regard to their ability to deliver good quality in time, and their focus on HSE (several incidents related to electrical work on PEG1&2). The projects Risk and Opportunity document (240-B-QA-002) has been updated to reflect this.
+Update 03.02.2026: The project's risk and opportunity document updated 31.01. CTS ability and capacity to deliver good quality in time is still an open risk that needs to be managed.",OJ,2025-10-02
+240-DCM103,10,A complete construction budget will be needed soon,"As we see cost for contract work and hours spent increasing, and with the commitments related to the two Early Works Agreements, we now need to establish a complete construction budget. For now this budget have been updated with the commitments given CTS for their work (approved by BOD) only - but not to cover increased internal and external hours spent on the project.
+Update 03.02.2026: BOD have approved a complete construction budget and the full contract with CTS will be signed any day. The budget in this file have been updated to match the approved budget.",OJ,2025-12-02
+240-DCM103,11,"Site construction work started, but still missing the building permit","CTS have started  groundwork (that can be done without a permit), but we are still missing the needed drawings and documentations from CTS to be able to submit the building applications. It can appear that CTS have their focus elsewhere so we need to put some pressure on their management to get the needed paperwork in place.
+Update 02.01.2026: Frame permit  in place, Construction permit application (IG1) sent.
+Updated 03.02.2026: Construction permit IG1 received, work for next permit (IG2) in progress.",OJ/HC,2025-12-02
+240-DCM103,12,"Plans received for engineering, construction and commissioning do not allow sufficient time for delivering good quality.","We need to work with CTS to align on a project schedule that can gives enough room quality testing of systems. Some mitigations can be to prioritise construction a bit different, add more manpower, align commissioning in groups and adjust the construction accordantly. According to contract the project baseline shall be ready 4 weeks after contract signing.",HC,2026-02-03
+240-DCM103,13,Low data center experience by hired resources,"We see a tendency that several external consultants are pulled in to have active roles in the project, controlled by other than the PM. Moste of these resources have little to no background in DC construction - hence it is time consuming to assist them and it create extra load on already stretched internal personnel. Bulk will need to take a stand on how these external consultants shall be used and what roles they shall play in the project execution moving forward.",OJ,2026-02-03
