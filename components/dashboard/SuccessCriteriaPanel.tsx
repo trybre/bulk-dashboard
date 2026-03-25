@@ -1,154 +1,92 @@
 'use client';
 
-import { useState } from 'react';
-import { Clock, DollarSign, CheckCircle2, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Card } from '@/components/ui/card';
 import { statusToColor, type Project } from '@/lib/schemas/project-schema';
 
 interface SuccessCriteriaPanelProps {
   project: Project;
 }
 
-const colorConfig = {
-  green: {
-    cardBorder: 'border-emerald-100',
-    cardBg: 'bg-gradient-to-b from-emerald-50/50 to-white',
-    iconBg: 'bg-emerald-100',
-    iconColor: 'text-emerald-600',
-    badge: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-50',
-    dot: 'bg-emerald-500',
-    statusIcon: TrendingUp,
-    headerAccent: 'text-emerald-600',
-  },
-  yellow: {
-    cardBorder: 'border-amber-100',
-    cardBg: 'bg-gradient-to-b from-amber-50/50 to-white',
-    iconBg: 'bg-amber-100',
-    iconColor: 'text-amber-600',
-    badge: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50',
-    dot: 'bg-amber-500',
-    statusIcon: Minus,
-    headerAccent: 'text-amber-600',
-  },
-  red: {
-    cardBorder: 'border-red-100',
-    cardBg: 'bg-gradient-to-b from-red-50/50 to-white',
-    iconBg: 'bg-red-100',
-    iconColor: 'text-red-600',
-    badge: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-50',
-    dot: 'bg-red-500',
-    statusIcon: TrendingDown,
-    headerAccent: 'text-red-600',
-  },
+const circleColors: Record<'green' | 'yellow' | 'red', string> = {
+  green: 'bg-emerald-500 shadow-emerald-200',
+  yellow: 'bg-amber-400 shadow-amber-200',
+  red: 'bg-red-500 shadow-red-200',
 };
 
-interface CriteriaCardProps {
-  name: string;
-  weight: string;
-  priority: number;
-  status: string;
-  comment: string;
-  icon: React.ReactNode;
+function CommentBullets({ text }: { text: string }) {
+  if (!text) return null;
+  const bullets = text
+    .split(/\.\s+|\n/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 8);
+  return (
+    <ul className="space-y-2">
+      {bullets.map((b, i) => (
+        <li key={i} className="flex gap-2 text-xs text-gray-600 leading-relaxed">
+          <span className="text-teal-600 font-bold shrink-0 mt-0.5">›</span>
+          <span>{b.endsWith('.') ? b : b + '.'}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
-function CriteriaCard({ name, weight, priority, status, comment, icon }: CriteriaCardProps) {
+interface CriterionRowProps {
+  name: string;
+  weight: string;
+  status: string;
+  comment: string;
+  isLast?: boolean;
+}
+
+function CriterionRow({ name, weight, status, comment, isLast }: CriterionRowProps) {
   const color = statusToColor(status);
-  const cfg = colorConfig[color];
-  const StatusIcon = cfg.statusIcon;
-  const [expanded, setExpanded] = useState(false);
-  const isLong = comment.length > 100;
-
+  const circleCls = circleColors[color];
   return (
-    <Card className={`flex-1 shadow-sm border ${cfg.cardBorder} overflow-hidden`}>
-      <CardHeader className={`px-5 pt-5 pb-4 ${cfg.cardBg}`}>
-        <div className="flex items-start justify-between gap-2">
-          {/* Icon + name */}
-          <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${cfg.iconBg}`}>
-              <span className={cfg.iconColor}>{icon}</span>
-            </div>
-            <div>
-              <p className="text-sm font-bold text-gray-900">{name}</p>
-              <p className="text-[10px] text-gray-400 font-medium">Priority {priority}</p>
-            </div>
-          </div>
-          {/* Weight badge */}
-          <Badge variant="secondary" className="text-[10px] font-bold px-2 shrink-0">
-            {weight}
-          </Badge>
-        </div>
-
-        <Separator className="mt-3 bg-gray-100" />
-
-        {/* Status badge */}
-        <div className="mt-3 flex items-center gap-2">
-          <Badge variant="outline" className={`gap-1.5 font-semibold text-xs px-2.5 py-1 h-auto ${cfg.badge}`}>
-            <StatusIcon className="w-3 h-3" />
-            {status}
-          </Badge>
-        </div>
-      </CardHeader>
-
-      {comment && (
-        <CardContent className="px-5 pb-4 pt-0">
-          <p className={`text-xs text-gray-500 leading-relaxed ${!expanded && isLong ? 'line-clamp-2' : ''}`}>
-            {comment}
-          </p>
-          {isLong && (
-            <button
-              onClick={() => setExpanded(!expanded)}
-              className="flex items-center gap-1 text-[11px] text-blue-500 hover:text-blue-700 mt-2 font-medium"
-            >
-              {expanded ? (
-                <><ChevronUp className="w-3 h-3" /> Show less</>
-              ) : (
-                <><ChevronDown className="w-3 h-3" /> Read more</>
-              )}
-            </button>
-          )}
-        </CardContent>
-      )}
-    </Card>
+    <div className={`flex gap-4 px-5 py-4 ${!isLast ? 'border-b border-gray-100' : ''}`}>
+      {/* Status circle + label */}
+      <div className="flex flex-col items-center gap-1.5 shrink-0 w-14 text-center">
+        <div className={`w-9 h-9 rounded-full shadow-md ${circleCls}`} />
+        <p className="text-[11px] font-bold text-gray-700 leading-tight">{name}</p>
+        <p className="text-[10px] text-gray-400">{weight}</p>
+      </div>
+      {/* Comment bullets */}
+      <div className="flex-1 min-w-0 pt-0.5">
+        <CommentBullets text={comment} />
+      </div>
+    </div>
   );
 }
 
 export function SuccessCriteriaPanel({ project }: SuccessCriteriaPanelProps) {
   return (
-    <section>
-      <div className="flex items-center gap-2 mb-3">
-        <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-          Success Criteria
+    <Card className="shadow-sm border-teal-100 overflow-hidden">
+      {/* Section header */}
+      <div className="bg-teal-50 border-b border-teal-100 px-5 py-2.5">
+        <h2 className="text-xs font-bold text-teal-900 uppercase tracking-wide">
+          Overall Project Status
         </h2>
-        <Separator className="flex-1" />
       </div>
-      <div className="flex gap-4">
-        <CriteriaCard
-          name="Time"
-          weight="35%"
-          priority={1}
-          status={project.time_status}
-          comment={project.time_comment}
-          icon={<Clock className="w-4 h-4" />}
-        />
-        <CriteriaCard
-          name="Cost"
-          weight="35%"
-          priority={2}
-          status={project.cost_status}
-          comment={project.cost_comment}
-          icon={<DollarSign className="w-4 h-4" />}
-        />
-        <CriteriaCard
-          name="Quality"
-          weight="30%"
-          priority={3}
-          status={project.quality_status}
-          comment={project.quality_comment}
-          icon={<CheckCircle2 className="w-4 h-4" />}
-        />
-      </div>
-    </section>
+
+      <CriterionRow
+        name="Time"
+        weight="45%"
+        status={project.time_status}
+        comment={project.time_comment}
+      />
+      <CriterionRow
+        name="Cost"
+        weight="45%"
+        status={project.cost_status}
+        comment={project.cost_comment}
+      />
+      <CriterionRow
+        name="Quality"
+        weight="10%"
+        status={project.quality_status}
+        comment={project.quality_comment}
+        isLast
+      />
+    </Card>
   );
 }

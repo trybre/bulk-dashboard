@@ -1,5 +1,25 @@
 import { z } from 'zod';
 
+const parseNum = z
+  .union([z.string(), z.number()])
+  .optional()
+  .transform((val) => {
+    if (val === undefined || val === '' || val === null) return 0;
+    if (typeof val === 'number') return val;
+    const n = parseFloat(String(val).trim());
+    return isNaN(n) ? 0 : n;
+  });
+
+const parseIntNum = z
+  .union([z.string(), z.number()])
+  .optional()
+  .transform((val) => {
+    if (val === undefined || val === '' || val === null) return 0;
+    if (typeof val === 'number') return Math.round(val);
+    const n = parseInt(String(val).trim());
+    return isNaN(n) ? 0 : n;
+  });
+
 export const ProjectSchema = z.object({
   project_id: z.string(),
   project_name: z.string(),
@@ -13,6 +33,22 @@ export const ProjectSchema = z.object({
   cost_comment: z.string().default(''),
   quality_status: z.string(),
   quality_comment: z.string().default(''),
+  // Financials KPIs
+  completion_rate: parseNum,
+  variation_orders: parseIntNum,
+  // Risk & Challenges
+  risk_comment: z.string().optional().default(''),
+  // Health & Safety KPIs (format: "current|previous")
+  hs_injuries: z.string().optional().default('0|0'),
+  hs_near_misses: z.string().optional().default('0|0'),
+  hs_hipo: z.string().optional().default('0|0'),
+  hs_headcount: z.string().optional().default('0|0'),
+  hs_hours_worked: z.string().optional().default('0|0'),
+  // Quality KPIs (format: "current|previous")
+  quality_punch_registered: z.string().optional().default('0|0'),
+  quality_punch_cleared: z.string().optional().default('0|0'),
+  quality_mc_inspections: z.string().optional().default('0|0'),
+  quality_deviations: z.string().optional().default('0|0'),
 });
 
 export type Project = z.infer<typeof ProjectSchema>;
@@ -22,4 +58,10 @@ export function statusToColor(status: string): 'green' | 'yellow' | 'red' {
   if (s.includes('major deviation') || s === 'red') return 'red';
   if (s.includes('deviation')) return 'yellow';
   return 'green';
+}
+
+export function parsePair(val: string | undefined, defaultVal = '0|0'): [string, string] {
+  const str = val ?? defaultVal;
+  const [a, b] = str.split('|');
+  return [a?.trim() ?? '0', b?.trim() ?? '0'];
 }

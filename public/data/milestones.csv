@@ -1,18 +1,66 @@
 project_id,milestone_nr,name,date,status
-240-DCM103,1,Start-up project,2024-07-01,OK
-240-DCM103,2,Internal planning and organization finished - project execution model established and approved,2024-12-15,OK
-240-DCM103,3,Stage 2 report accepted - start stage 3,2024-12-15,OK
-240-DCM103,4,Stage 3 report finished,2025-07-03,OK
-240-DCM103,5,Business case presented to the Bulk investment committee,2025-10-30,OK
-240-DCM103,6,Business case established - presented to the Board for approval,2025-12-09,OK
-240-DCM103,7,Decision - go/no go for further project execution (contract signed with CTS),2026-02-04,OK
-240-DCM103,8,Detail design completed,2026-06-08,MIDLERTIDIG
-240-DCM103,9,Start-up at site,2025-11-03,OK
-240-DCM103,10,Shell and core finished - weather tight building,2026-08-03,MIDLERTIDIG
-240-DCM103,11,Power On,2026-10-16,MIDLERTIDIG
-240-DCM103,12,Commissioning level 3,2026-11-19,MIDLERTIDIG
-240-DCM103,13,Commissioning level 4,2026-12-03,MIDLERTIDIG
-240-DCM103,14,Commissioning level 5,2026-12-10,MIDLERTIDIG
-240-DCM103,15,White Space Level 1 Ready,2026-12-22,MIDLERTIDIG
-240-DCM103,17,White Space Level 2 Ready,2027-02-26,MIDLERTIDIG
-240-DCM103,18,Building handover,2027-03-01,MIDLERTIDIG
+HELIOS-404,1,Project governance and organisation established,2025-01-15,OK
+HELIOS-404,2,Site acquisition and geotechnical survey complete,2025-04-03,OK
+HELIOS-404,3,Stage 2 concept design approved by Board,2025-06-19,OK
+HELIOS-404,4,Planning permission granted (rammesøknad),2025-09-08,OK
+HELIOS-404,5,Main contractor (NordFabrikk Group) contract signed,2025-10-30,OK
+HELIOS-404,6,Site mobilisation and groundworks start,2025-11-17,OK
+HELIOS-404,7,Foundation and basement slab complete,2026-02-20,MIDLERTIDIG
+HELIOS-404,8,Structural frame floors 1–4 complete,2026-06-12,MIDLERTIDIG
+HELIOS-404,9,Structural frame floors 5–8 complete,2026-09-04,MIDLERTIDIG
+HELIOS-404,10,Building weathertight — facade and roof closed,2026-11-27,MIDLERTIDIG
+HELIOS-404,11,MEP rough-in complete all levels,2027-03-05,MIDLERTIDIG
+HELIOS-404,12,HV switchgear and generator yard energised,2027-05-16,MIDLERTIDIG
+HELIOS-404,13,Commissioning Phase 1 — 20 MW IT load ready,2027-08-22,MIDLERTIDIG
+HELIOS-404,14,Customer acceptance and handover Phase 1,2027-10-10,MIDLERTIDIG
+NOVA-305,1,Project governance and organisation established,2025-03-10,OK
+NOVA-305,2,Site selection and land acquisition complete,2025-05-22,OK
+NOVA-305,3,Geotechnical and environmental investigation complete,2025-07-14,OK
+NOVA-305,4,Concept design (Stage 2) approved by Board,2025-09-04,OK
+NOVA-305,5,Planning permission (rammesøknad) granted,2025-11-28,OK
+NOVA-305,6,Main contractor (NordFjord Bygg JV) contract signed,2026-01-09,OK
+NOVA-305,7,Site mobilisation and groundworks start,2026-01-26,OK
+NOVA-305,8,Piling and foundation works complete,2026-05-08,MIDLERTIDIG
+NOVA-305,9,Structural steel erection complete,2026-09-18,MIDLERTIDIG
+NOVA-305,10,Building weathertight — facade and roof closed,2026-12-04,MIDLERTIDIG
+NOVA-305,11,MEP rough-in complete all levels,2027-02-19,MIDLERTIDIG
+NOVA-305,12,HV switchgear and generator yard energised,2027-04-10,MIDLERTIDIG
+NOVA-305,13,Commissioning level 2 complete,2027-05-23,MIDLERTIDIG
+NOVA-305,14,Commissioning level 3 — integrated systems test,2027-07-11,MIDLERTIDIG
+NOVA-305,15,White Space ready — Phase 1 (12 MW IT load),2027-08-29,MIDLERTIDIG
+NOVA-305,16,Customer acceptance and handover Phase 1,2027-10-03,MIDLERTIDIG
+NOVA-305,17,HV upgrade complete — full 30 MW available,2028-01-16,MIDLERTIDIG
+NOVA-305,18,White Space ready — full capacity Phase 2,2028-04-25,MIDLERTIDIG
+TITAN-202,1,Project kick-off and governance framework established,2024-10-01,OK
+TITAN-202,2,Site acquisition and geotechnical survey complete,2025-01-14,OK
+TITAN-202,3,Stage 2 concept design approved by Board,2025-03-20,OK
+TITAN-202,4,Planning permission granted (rammesøknad),2025-06-05,OK
+TITAN-202,5,Main contractor (NordBuild Consortium) contract signed,2025-08-22,OK
+TITAN-202,6,Site mobilisation and groundworks start,2025-09-15,OK
+TITAN-202,7,Foundation and basement slab complete,2025-12-12,OK
+TITAN-202,8,Structural frame floors 1–3 complete,2026-02-06,OK
+TITAN-202,9,Structural frame floors 4–6 complete,2026-04-18,MIDLERTIDIG
+TITAN-202,10,Building weathertight — facade and roof closed,2026-07-03,MIDLERTIDIG
+TITAN-202,11,MEP rough-in complete all levels,2026-09-11,MIDLERTIDIG
+TITAN-202,12,Generator yard and HV switchgear energised (Phase 1 — 20 MW),2026-10-29,MIDLERTIDIG
+TITAN-202,13,Commissioning level 2 complete,2026-11-20,MIDLERTIDIG
+TITAN-202,14,Commissioning level 3 — integrated systems test,2027-01-08,MIDLERTIDIG
+TITAN-202,15,White Space ready — Phase 1 (8 MW IT load),2027-02-14,MIDLERTIDIG
+TITAN-202,16,Customer acceptance and handover Phase 1,2027-03-28,MIDLERTIDIG
+TITAN-202,17,HV upgrade complete — full 40 MW available,2027-06-30,MIDLERTIDIG
+TITAN-202,18,White Space ready — Phase 2 (full capacity),2027-09-15,MIDLERTIDIG
+ORION-101,1,Project kick-off and governance established,2024-09-15,OK
+ORION-101,2,Site survey and geotechnical investigation complete,2024-11-30,OK
+ORION-101,3,Concept design approved by Board,2025-01-20,OK
+ORION-101,4,Planning permission granted,2025-04-10,OK
+ORION-101,5,Main contractor EPCI contract signed,2025-06-01,OK
+ORION-101,6,Site mobilisation and groundworks start,2025-07-14,OK
+ORION-101,7,Foundation and basement slab complete,2025-10-30,OK
+ORION-101,8,Structural steel erection complete,2026-02-27,MIDLERTIDIG
+ORION-101,9,Building weathertight (facade and roof),2026-05-15,MIDLERTIDIG
+ORION-101,10,MEP rough-in complete all levels,2026-06-30,MIDLERTIDIG
+ORION-101,11,Generator yard and HV switchgear energised,2026-08-18,MIDLERTIDIG
+ORION-101,12,Commissioning level 2 complete,2026-09-25,MIDLERTIDIG
+ORION-101,13,Commissioning level 3 - integrated systems test,2026-11-10,MIDLERTIDIG
+ORION-101,14,White Space ready - Phase 1 (10 MW IT load),2026-12-16,MIDLERTIDIG
+ORION-101,15,Customer acceptance and handover,2027-01-30,MIDLERTIDIG

@@ -2,7 +2,6 @@
 
 import { CalendarDays, User2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { type Project } from '@/lib/schemas/project-schema';
 
 interface ProjectHeaderProps {
@@ -13,72 +12,78 @@ interface ProjectHeaderProps {
 
 const statusConfig = {
   GREEN: {
-    bg: 'bg-emerald-500/10 border-emerald-500/20',
-    text: 'text-emerald-400',
-    badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/15',
+    badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     icon: TrendingUp,
     label: 'On Track',
-    dot: 'bg-emerald-400',
   },
   YELLOW: {
-    bg: 'bg-amber-500/10 border-amber-500/20',
-    text: 'text-amber-400',
-    badge: 'bg-amber-500/15 text-amber-400 border-amber-500/30 hover:bg-amber-500/15',
+    badge: 'bg-amber-50 text-amber-700 border-amber-200',
     icon: Minus,
     label: 'Deviation',
-    dot: 'bg-amber-400',
   },
   RED: {
-    bg: 'bg-red-500/10 border-red-500/20',
-    text: 'text-red-400',
-    badge: 'bg-red-500/15 text-red-400 border-red-500/30 hover:bg-red-500/15',
+    badge: 'bg-red-50 text-red-700 border-red-200',
     icon: TrendingDown,
     label: 'At Risk',
-    dot: 'bg-red-400',
   },
 };
+
+function formatReportDate(dateStr: string): string {
+  try {
+    const parts = dateStr.split('.');
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      const fullYear = parseInt(year) < 100 ? 2000 + parseInt(year) : parseInt(year);
+      const d = new Date(fullYear, parseInt(month) - 1, parseInt(day));
+      return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    }
+    return new Date(dateStr).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
 
 export function ProjectHeader({ project }: ProjectHeaderProps) {
   const cfg = statusConfig[project.overall_status];
   const StatusIcon = cfg.icon;
 
   return (
-    <div className="bg-white border-b border-gray-100 px-6 py-4">
-      <div className="flex items-start justify-between gap-4">
-        {/* Left: project identity */}
+    <header className="bg-white border-b border-gray-100 px-8 py-5 relative overflow-hidden">
+      {/* Teal left accent bar */}
+      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-teal-700" />
+
+      <div className="flex items-start justify-between gap-6 pl-3">
+        {/* Left: identity */}
         <div className="min-w-0 flex-1">
-          {/* Project ID chip */}
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="inline-block text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded tracking-widest uppercase">
-              {project.project_id}
+          <div className="mb-2">
+            <span className="inline-block text-[11px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-3 py-0.5 rounded-sm uppercase tracking-widest">
+              Infra Projects
             </span>
           </div>
 
-          <h1 className="text-xl font-bold text-gray-900 leading-tight truncate">
-            {project.project_name}
+          <h1 className="text-2xl font-bold text-teal-800 leading-tight">
+            Bulk Infrastructure | Management Report
           </h1>
-          {project.company && (
-            <p className="text-sm text-gray-400 font-normal mt-0.5 truncate">{project.company}</p>
-          )}
+          <p className="text-base text-gray-500 mt-1 font-normal">
+            Project status: {project.project_name} – {formatReportDate(project.report_date)}
+          </p>
 
-          {/* Meta row */}
-          <div className="flex items-center gap-4 mt-2.5 flex-wrap">
-            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+          <div className="flex items-center gap-5 mt-2.5 flex-wrap text-xs text-gray-500">
+            <div className="flex items-center gap-1.5">
               <User2 className="w-3.5 h-3.5 text-gray-400" />
               <span className="font-medium text-gray-700">{project.project_manager}</span>
             </div>
-            <Separator orientation="vertical" className="h-3 bg-gray-200" />
-            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+            <div className="flex items-center gap-1.5">
               <CalendarDays className="w-3.5 h-3.5 text-gray-400" />
               <span>{project.report_date}</span>
             </div>
           </div>
         </div>
 
-        {/* Right: overall status */}
-        <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border ${cfg.bg} shrink-0`}>
+        {/* Right: overall status + Bulk wordmark */}
+        <div className="flex items-center gap-5 shrink-0">
           <div className="text-right">
-            <p className="text-[9px] text-gray-400 uppercase tracking-widest font-semibold mb-1">
+            <p className="text-[9px] text-gray-400 uppercase tracking-widest font-semibold mb-1.5">
               Overall Status
             </p>
             <Badge
@@ -89,8 +94,16 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
               {cfg.label}
             </Badge>
           </div>
+
+          {/* Bulk wordmark */}
+          <div className="border-l border-gray-100 pl-5">
+            <p className="text-3xl font-black text-teal-800 tracking-tight leading-none">bulk</p>
+            <p className="text-[9px] text-gray-400 uppercase tracking-widest mt-0.5">Infrastructure</p>
+          </div>
         </div>
       </div>
-    </div>
+    </header>
   );
 }
+
+

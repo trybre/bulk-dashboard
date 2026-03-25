@@ -1,209 +1,179 @@
 'use client';
 
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { type BudgetLine, formatMnok } from '@/lib/schemas/budget-schema';
+import { Card, CardContent } from '@/components/ui/card';
+import { type BudgetLine } from '@/lib/schemas/budget-schema';
+import { parsePair, type Project } from '@/lib/schemas/project-schema';
 
 interface BudgetOverviewChartProps {
   budget: BudgetLine[];
+  project: Project;
 }
 
-function pct(paid: number, total: number): number {
-  if (total === 0) return 0;
-  return Math.min(100, Math.round((paid / total) * 100));
-}
+const BAR_COLORS = ['#0f766e', '#134e4a', '#14b8a6', '#5eead4'];
+const LEGEND_LABELS = ['Booked PTD', 'Original Budget', 'Revised Budget', 'Current Estimate'];
 
-type PctLevel = 'high' | 'mid' | 'low';
-function pctLevel(p: number): PctLevel {
-  if (p >= 90) return 'high';
-  if (p >= 60) return 'mid';
-  return 'low';
-}
+function FinancialsBarChart({ budget }: { budget: BudgetLine[] }) {
+  const isSumRow = (b: BudgetLine) =>
+    b.budget_post.toLowerCase().includes('sum') || b.budget_post.toLowerCase().includes('total');
+  const sumRow = budget.find(isSumRow);
+  if (!sumRow) return null;
 
-const barColors: Record<PctLevel, string> = {
-  high: 'bg-emerald-600',
-  mid: 'bg-blue-500',
-  low: 'bg-slate-300',
-};
+  const values = [
+    sumRow.paid_nok,
+    sumRow.budget_nok,
+    sumRow.budget_incl_additional_nok,
+    sumRow.eac_nok || sumRow.budget_incl_additional_nok,
+  ];
+  const maxVal = Math.max(...values) * 1.18;
 
-const badgeColors: Record<PctLevel, string> = {
-  high: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  mid: 'bg-blue-50 text-blue-700 border-blue-200',
-  low: 'bg-slate-50 text-slate-600 border-slate-200',
-};
-
-interface BudgetRowProps {
-  label: string;
-  paid: number;
-  total: number;
-  isSummary?: boolean;
-}
-
-function BudgetBarRow({ label, paid, total, isSummary }: BudgetRowProps) {
-  const p = pct(paid, total);
-  const level = pctLevel(p);
+  const BAR_W = 44;
+  const GAP = 20;
+  const CHART_H = 120;
+  const CHART_Y = 20;
+  const CHART_BOTTOM = CHART_Y + CHART_H;
+  const totalW = values.length * (BAR_W + GAP) + GAP;
 
   return (
-    <div className={`group ${isSummary ? 'pt-1' : ''}`}>
-      <div className="flex items-center justify-between gap-2 mb-1.5">
-        <p className={`text-xs truncate max-w-[50%] ${isSummary ? 'font-bold text-gray-900' : 'text-gray-600'}`}>
-          {label}
-        </p>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs text-gray-400 tabular-nums">
-            {formatMnok(paid)}&thinsp;/&thinsp;{formatMnok(total)} MNOK
-          </span>
-          <Badge
-            variant="outline"
-            className={`text-[10px] font-bold tabular-nums px-1.5 h-5 min-w-[2.5rem] justify-center ${badgeColors[level]}`}
-          >
-            {p}%
-          </Badge>
+    <div className="flex-1 min-w-0">
+      <div className="flex gap-6 items-end">
+        <svg viewBox={`0 0 ${totalW} ${CHART_BOTTOM + 30}`} className="flex-1" style={{ minWidth: 200, maxWidth: 300 }}>
+          {values.map((val, i) => {
+            const x = GAP + i * (BAR_W + GAP);
+            const barH = maxVal > 0 ? (val / maxVal) * CHART_H : 0;
+            const y = CHART_BOTTOM - barH;
+            return (
+              <g key={i}>
+                <rect x={x} y={y} width={BAR_W} height={barH} fill={BAR_COLORS[i]} rx={2} />
+                <text x={x + BAR_W / 2} y={y - 4} textAnchor="middle" fontSize={8} fill="#374151" fontWeight="700">
+                  {(val / 1_000_000_000).toFixed(3)}
+                </text>
+              </g>
+            );
+          })}
+          <line x1={GAP / 2} y1={CHART_BOTTOM} x2={totalW - GAP / 2} y2={CHART_BOTTOM} stroke="#e5e7eb" strokeWidth={1} />
+        </svg>
+        <div className="space-y-2 shrink-0 pb-1">
+          {LEGEND_LABELS.map((label, i) => (
+            <div key={label} className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: BAR_COLORS[i] }} />
+              <span className="text-[10px] text-gray-500">{label}</span>
+            </div>
+          ))}
         </div>
-      </div>
-      {/* Progress bar track */}
-      <div className={`w-full rounded-full overflow-hidden ${isSummary ? 'h-2.5 bg-gray-200' : 'h-1.5 bg-gray-100'}`}>
-        <div
-          className={`h-full rounded-full transition-all duration-500 ${barColors[level]}`}
-          style={{ width: `${p}%` }}
-        />
       </div>
     </div>
   );
 }
 
-export function BudgetOverviewChart({ budget }: BudgetOverviewChartProps) {
+function KpiTile({ label, value, sub, highlight }: { label: string; value: string; sub?: string; highlight?: boolean }) {
+  return (
+    <div className={`rounded-lg border px-4 py-3 text-center ${highlight ? 'border-teal-200 bg-teal-50' : 'border-gray-100 bg-gray-50'}`}>
+      <p className={`text-xl font-black tabular-nums leading-tight ${highlight ? 'text-teal-800' : 'text-gray-900'}`}>{value}</p>
+      <p className={`text-[10px] font-semibold mt-0.5 ${highlight ? 'text-teal-600' : 'text-gray-500'}`}>{label}</p>
+      {sub && <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+function KpiBigCell({ label, values }: { label: string; values: [string, string] }) {
+  return (
+    <div className="text-center px-4 py-3 border-r last:border-r-0 border-gray-100">
+      <p className="text-sm font-black text-gray-800 tabular-nums">
+        {values[0]}
+        <span className="text-gray-300 mx-1 font-light">|</span>
+        <span className="text-xs text-gray-400">{values[1]}</span>
+      </p>
+      <p className="text-[10px] font-semibold text-gray-600 mt-1 leading-tight">{label}</p>
+    </div>
+  );
+}
+
+function KpiSubHeader({ title, note }: { title: string; note?: string }) {
+  return (
+    <div className="bg-teal-50 border-y border-teal-100 px-5 py-1.5 flex items-center justify-between">
+      <p className="text-[10px] font-bold text-teal-800 uppercase tracking-wide">{title}</p>
+      {note && <p className="text-[9px] text-teal-500 italic">{note}</p>}
+    </div>
+  );
+}
+
+export function BudgetOverviewChart({ budget, project }: BudgetOverviewChartProps) {
   const isSumRow = (b: BudgetLine) =>
     b.budget_post.toLowerCase().includes('sum') || b.budget_post.toLowerCase().includes('total');
-
-  const lines = budget.filter((b) => !isSumRow(b));
   const sumRow = budget.find(isSumRow);
 
+  const completionRate = project.completion_rate ?? 0;
+  const variationOrders = project.variation_orders ?? 0;
+  const eac = sumRow?.eac_nok ?? 0;
+  const devBudgetPct =
+    sumRow && sumRow.budget_incl_additional_nok > 0
+      ? ((eac - sumRow.budget_incl_additional_nok) / sumRow.budget_incl_additional_nok) * 100
+      : 0;
+
+  const [inj, injPrev] = parsePair(project.hs_injuries);
+  const [nm, nmPrev] = parsePair(project.hs_near_misses);
+  const [hipo, hipoPrev] = parsePair(project.hs_hipo);
+  const [head, headPrev] = parsePair(project.hs_headcount);
+  const [hours, hoursPrev] = parsePair(project.hs_hours_worked);
+  const [punchReg, punchRegPrev] = parsePair(project.quality_punch_registered);
+  const [punchCl, punchClPrev] = parsePair(project.quality_punch_cleared);
+  const [mcInsp, mcInspPrev] = parsePair(project.quality_mc_inspections);
+  const [qDev, qDevPrev] = parsePair(project.quality_deviations);
+
   return (
-    <section>
-      <div className="flex items-center gap-2 mb-3">
-        <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-          Budget Overview
-        </h2>
-        <Separator className="flex-1" />
+    <Card className="shadow-sm border-teal-100 overflow-hidden">
+      {/* Header */}
+      <div className="bg-teal-700 text-white px-5 py-2.5">
+        <p className="text-[10px] font-bold uppercase tracking-wide">
+          Financials and Cash Flow Profile (NOKm)
+        </p>
       </div>
 
-      <Tabs defaultValue="bars">
-        <div className="flex items-center justify-between mb-3">
-          <TabsList className="h-8">
-            <TabsTrigger value="bars" className="text-xs px-3 h-6">Progress view</TabsTrigger>
-            <TabsTrigger value="table" className="text-xs px-3 h-6">Table view</TabsTrigger>
-          </TabsList>
-          {sumRow && (
-            <Badge variant="outline" className="text-[10px] font-semibold text-gray-500 border-gray-200">
-              Total: {formatMnok(sumRow.budget_incl_additional_nok)} MNOK
-            </Badge>
-          )}
+      {/* Bar chart + KPI tiles */}
+      <CardContent className="p-5">
+        <div className="flex gap-6">
+          <FinancialsBarChart budget={budget} />
+          <div className="grid grid-cols-1 gap-3 w-40 shrink-0">
+            <KpiTile label="Completion rate" value={`${completionRate.toFixed(1)}%`} highlight />
+            <KpiTile
+              label="Dev. Budget"
+              value={devBudgetPct >= 0 ? `+${devBudgetPct.toFixed(1)}%` : `${devBudgetPct.toFixed(1)}%`}
+              sub={eac > 0 ? `EAC: ${(eac / 1_000_000_000).toFixed(3)} BNOK` : undefined}
+            />
+            <KpiTile label="Variation orders" value={`${variationOrders}`} />
+          </div>
         </div>
+      </CardContent>
 
-        {/* Progress bars view */}
-        <TabsContent value="bars" className="mt-0">
-          <Card className="shadow-sm border-gray-100">
-            <CardContent className="p-5 space-y-4">
-              {lines.map((b) => (
-                <BudgetBarRow
-                  key={b.budget_post}
-                  label={b.budget_post}
-                  paid={b.paid_nok}
-                  total={b.budget_incl_additional_nok}
-                />
-              ))}
+      {/* Health & Safety KPIs */}
+      <KpiSubHeader title="Health &amp; Safety KPIs" />
+      <div className="grid grid-cols-2">
+        <KpiBigCell label="Injuries" values={[inj, injPrev]} />
+        <div className="px-4 py-3 border-l border-gray-100">
+          <p className="text-[10px] font-semibold text-gray-600 mb-1">&ldquo;Near misses&rdquo;</p>
+          <p className="text-xs font-bold text-gray-800">
+            # RUH&apos;s: {nm}<span className="text-gray-300 mx-1">|</span><span className="text-gray-400">{nmPrev}</span>
+          </p>
+          <p className="text-xs font-bold text-gray-800 mt-0.5">
+            # HiPo&apos;s: {hipo}<span className="text-gray-300 mx-1">|</span><span className="text-gray-400">{hipoPrev}</span>
+          </p>
+        </div>
+      </div>
+      <div className="border-t border-gray-100 grid grid-cols-2">
+        <KpiBigCell label="Average daily headcount" values={[head, headPrev]} />
+        <KpiBigCell label="Total Worked Hours" values={[hours, hoursPrev]} />
+      </div>
 
-              {sumRow && (
-                <>
-                  <Separator />
-                  <BudgetBarRow
-                    label={sumRow.budget_post}
-                    paid={sumRow.paid_nok}
-                    total={sumRow.budget_incl_additional_nok}
-                    isSummary
-                  />
-                </>
-              )}
-
-              {/* Legend */}
-              <div className="flex items-center gap-4 pt-1 border-t border-gray-50">
-                {([['high', 'bg-emerald-600', '≥90%'], ['mid', 'bg-blue-500', '60–90%'], ['low', 'bg-slate-300', '<60%']] as const).map(([, color, label]) => (
-                  <div key={label} className="flex items-center gap-1.5">
-                    <div className={`w-2.5 h-2.5 rounded-full ${color}`} />
-                    <span className="text-[10px] text-gray-400">{label}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Table view */}
-        <TabsContent value="table" className="mt-0">
-          <Card className="shadow-sm border-gray-100 overflow-hidden">
-            <ScrollArea>
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-gray-50 hover:bg-gray-50">
-                    <TableHead className="text-xs font-semibold">Budget Post</TableHead>
-                    <TableHead className="text-xs font-semibold text-right">Budget (MNOK)</TableHead>
-                    <TableHead className="text-xs font-semibold text-right">Additional</TableHead>
-                    <TableHead className="text-xs font-semibold text-right">Total Budget</TableHead>
-                    <TableHead className="text-xs font-semibold text-right">Paid</TableHead>
-                    <TableHead className="text-xs font-semibold text-right">Spent %</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {budget.map((b) => {
-                    const p = pct(b.paid_nok, b.budget_incl_additional_nok);
-                    const level = pctLevel(p);
-                    const isSum = isSumRow(b);
-                    return (
-                      <TableRow key={b.budget_post} className={isSum ? 'bg-gray-50 font-semibold' : ''}>
-                        <TableCell className={`text-sm ${isSum ? 'font-bold text-gray-900' : 'text-gray-700'}`}>
-                          {b.budget_post}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums text-sm text-gray-600">
-                          {formatMnok(b.budget_nok)}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums text-sm text-gray-400">
-                          {formatMnok(b.additional_nok)}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums text-sm font-medium text-gray-900">
-                          {formatMnok(b.budget_incl_additional_nok)}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums text-sm text-emerald-700 font-medium">
-                          {formatMnok(b.paid_nok)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Badge
-                            variant="outline"
-                            className={`text-[10px] font-bold tabular-nums ${badgeColors[level]}`}
-                          >
-                            {p}%
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </section>
+      {/* Quality KPIs */}
+      <KpiSubHeader title="Quality KPIs" />
+      <div className="grid grid-cols-2">
+        <KpiBigCell label="Punch points registered" values={[punchReg, punchRegPrev]} />
+        <KpiBigCell label="Punch points cleared" values={[punchCl, punchClPrev]} />
+      </div>
+      <div className="border-t border-gray-100 grid grid-cols-2">
+        <KpiBigCell label="MC Inspections performed" values={[mcInsp, mcInspPrev]} />
+        <KpiBigCell label="Quality deviations" values={[qDev, qDevPrev]} />
+      </div>
+    </Card>
   );
 }

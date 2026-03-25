@@ -1,10 +1,109 @@
 'use client';
 
-import { DollarSign, CreditCard, Percent, Wallet } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { type BudgetLine, formatMnok } from '@/lib/schemas/budget-schema';
+import { parsePair, type Project } from '@/lib/schemas/project-schema';
+import { type BudgetLine } from '@/lib/schemas/budget-schema';
+
+interface KpiPanelsProps {
+  project: Project;
+}
+
+function KpiCell({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className="text-center px-3 py-2 border-r last:border-r-0 border-gray-100">
+      <p className="text-sm font-bold text-gray-800 tabular-nums leading-tight">{value}</p>
+      <p className="text-xs font-semibold text-gray-600 mt-0.5 leading-tight">{label}</p>
+      {sub && <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+function KpiBigCell({ label, values }: { label: string; values: [string, string] }) {
+  return (
+    <div className="text-center px-4 py-5 border-r last:border-r-0 border-gray-100">
+      <p className="text-3xl font-black text-gray-800 tabular-nums">
+        {values[0]}
+        <span className="text-gray-300 mx-2 font-light">|</span>
+        <span className="text-xl text-gray-400">{values[1]}</span>
+      </p>
+      <p className="text-sm font-semibold text-gray-500 mt-2 leading-tight">{label}</p>
+    </div>
+  );
+}
+
+function SectionHeader({ title, note }: { title: string; note?: string }) {
+  return (
+    <div className="bg-teal-700 text-white px-4 py-1.5 flex items-center justify-between">
+      <p className="text-[10px] font-bold uppercase tracking-wide">{title}</p>
+      {note && <p className="text-[9px] text-teal-200 italic">{note}</p>}
+    </div>
+  );
+}
+
+export function KpiPanels({ project }: KpiPanelsProps) {
+  const [inj, injPrev] = parsePair(project.hs_injuries);
+  const [nm, nmPrev] = parsePair(project.hs_near_misses);
+  const [hipo, hipoPrev] = parsePair(project.hs_hipo);
+  const [head, headPrev] = parsePair(project.hs_headcount);
+  const [hours, hoursPrev] = parsePair(project.hs_hours_worked);
+  const [punchReg, punchRegPrev] = parsePair(project.quality_punch_registered);
+  const [punchCl, punchClPrev] = parsePair(project.quality_punch_cleared);
+  const [mcInsp, mcInspPrev] = parsePair(project.quality_mc_inspections);
+  const [qDev, qDevPrev] = parsePair(project.quality_deviations);
+
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      {/* Health & Safety */}
+      <Card className="shadow-sm border-teal-100 overflow-hidden">
+        <SectionHeader title="Health &amp; Safety KPIs" />
+        <CardContent className="p-0">
+          <div className="grid grid-cols-2">
+            <KpiBigCell label="Injuries" values={[inj, injPrev]} />
+            <div className="px-4 py-5 border-l border-gray-100">
+              <p className="text-xs font-semibold text-gray-500 mb-2">&#34;Near misses&#34;</p>
+              <p className="text-xl font-bold text-gray-800">
+                # RUH&#39;s: {nm}
+                <span className="text-gray-300 mx-1">|</span>
+                <span className="text-gray-400">{nmPrev}</span>
+              </p>
+              <p className="text-xl font-bold text-gray-800 mt-1">
+                # HiPo&#39;s: {hipo}
+                <span className="text-gray-300 mx-1">|</span>
+                <span className="text-gray-400">{hipoPrev}</span>
+              </p>
+            </div>
+          </div>
+          <div className="border-t border-gray-100 grid grid-cols-2">
+            <KpiBigCell label="Average daily headcount" values={[head, headPrev]} />
+            <KpiBigCell label="Total Worked Hours" values={[hours, hoursPrev]} />
+          </div>
+          <div className="border-t border-gray-100 px-4 py-2">
+            <p className="text-[10px] font-semibold text-gray-500">Comments</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Quality */}
+      <Card className="shadow-sm border-teal-100 overflow-hidden">
+        <SectionHeader title="Quality KPIs" />
+        <CardContent className="p-0">
+          <div className="grid grid-cols-2">
+            <KpiBigCell label="Punch points registered" values={[punchReg, punchRegPrev]} />
+            <KpiBigCell label="Punch points cleared" values={[punchCl, punchClPrev]} />
+          </div>
+          <div className="border-t border-gray-100 grid grid-cols-2">
+            <KpiBigCell label="MC Inspections performed" values={[mcInsp, mcInspPrev]} />
+            <KpiBigCell label="Quality deviations" values={[qDev, qDevPrev]} />
+          </div>
+          <div className="border-t border-gray-100 px-4 py-2">
+            <p className="text-[10px] font-semibold text-gray-500">Comments</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 
 interface BudgetKpiCardsProps {
   budget: BudgetLine[];

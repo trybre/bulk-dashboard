@@ -5,13 +5,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { fetchProjects, fetchDashboardData, type DashboardData } from '@/lib/data-service';
 import { type Project } from '@/lib/schemas/project-schema';
+import { getPreviousSnapshot, getProjectsFromExcel, getExcelHistory, getStoredExcelData, type HistoryEntry, type ExcelData } from '@/lib/excel-service';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { ProjectHeader } from '@/components/dashboard/ProjectHeader';
 import { SuccessCriteriaPanel } from '@/components/dashboard/SuccessCriteriaPanel';
 import { MilestoneTimeline } from '@/components/dashboard/MilestoneTimeline';
 import { BudgetOverviewChart } from '@/components/dashboard/BudgetOverviewChart';
-import { BudgetKpiCards } from '@/components/dashboard/BudgetKpiCards';
 import { IssuesRiskTable } from '@/components/dashboard/IssuesRiskTable';
+import { PortfolioView } from '@/components/dashboard/PortfolioView';
+import { AIChatPanel } from '@/components/dashboard/AIChatPanel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -53,8 +55,17 @@ function DashboardInner() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [previousProjects, setPreviousProjects] = useState<Project[]>([]);
+  const [previousEntry, setPreviousEntry] = useState<HistoryEntry | undefined>();
+  const [currentEntry, setCurrentEntry] = useState<HistoryEntry | undefined>();
+  const [historicalSnapshots, setHistoricalSnapshots] = useState<{ entry: HistoryEntry; data: ExcelData }[]>([]);
 
+  const view = searchParams.get('view');
   const projectId = searchParams.get('project');
+  const isPortfolio = view === 'portfolio';
+
+  // selectedId for the sidebar: '__portfolio__' or a project_id
+  const selectedId = isPortfolio ? '__portfolio__' : (projectId ?? '');
 
   const loadData = useCallback(async (_projects: Project[], targetId: string) => {
     setLoading(true);
@@ -73,50 +84,127 @@ function DashboardInner() {
     }
   }, []);
 
-  useEffect(() => {
-    async function init() {
-      setLoading(true);
-      setError(null);
-      try {
-        const projects = await fetchProjects();
-        if (projects.length === 0) {
-          setError('No projects found. Place CSV files in /public/data/ (see README.md).');
-          setLoading(false);
-          return;
+  const init = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const projects = await fetchProjects();
+      if (projects.length === 0) {
+        setError('No projects found. Place CSV files in /public/data/ (see README.md).');
+        setLoading(false);
+        return;
+      }
+      setAllProjects(projects);
+
+      // Load all history snapshots for AI context
+      const history = getExcelHistory();
+      const snapshots = history.flatMap((entry) => {
+        try {
+          const raw = localStorage.getItem(`bulk_dashboard_snapshot_${entry.id}`);
+          if (!raw) return [];
+          return [{ entry, data: JSON.parse(raw) as ExcelData }];
+        } catch { return []; }
+      });
+      setHistoricalSnapshots(snapshots);
+
+      if (isPortfolio) {
+        // Portfolio view — also load previous snapshot for delta comparison
+        const prevSnap = getPreviousSnapshot();
+        if (prevSnap) {
+          setPreviousProjects(getProjectsFromExcel(prevSnap));
+          const history = getExcelHistory();
+          setPreviousEntry(history[1]);
+          setCurrentEntry(history[0]);
         }
-        setAllProjects(projects);
+        const currentSnap = getStoredExcelData();
+        if (currentSnap && !prevSnap) {
+          const history = getExcelHistory();
+          setCurrentEntry(history[0]);
+        }
+        setData(null);
+        setLoading(false);
+      } else {
         const targetId = projectId ?? projects[0].project_id;
         await loadData(projects, targetId);
         if (!projectId) {
           router.replace(`?project=${encodeURIComponent(projects[0].project_id)}`, { scroll: false });
         }
-      } catch (e) {
-        setError(
-          e instanceof Error ? e.message : 'Failed to load CSV data. Ensure files exist in /public/data/'
-        );
-        setLoading(false);
       }
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : 'Failed to load CSV data. Ensure files exist in /public/data/'
+      );
+      setLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPortfolio, projectId]);
+
+  useEffect(() => {
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (projectId && allProjects.length > 0) {
+    if (!isPortfolio && projectId && allProjects.length > 0) {
       loadData(allProjects, projectId);
     }
-  }, [projectId, allProjects, loadData]);
+  }, [projectId, isPortfolio, allProjects, loadData]);
 
   function handleNavigate(id: string) {
-    router.push(`?project=${encodeURIComponent(id)}`, { scroll: false });
+    if (id === '__portfolio__') {
+      router.push('?view=portfolio', { scroll: false });
+    } else {
+      router.push(`?project=${encodeURIComponent(id)}`, { scroll: false });
+    }
+  }
+
+  async function handleReload() {
+    const projects = await fetchProjects();
+    setAllProjects(projects);
+    if (isPortfolio) {
+      // Re-derive previous snapshot for delta comparison
+      const prevSnap = getPreviousSnapshot();
+      if (prevSnap) {
+        setPreviousProjects(getProjectsFromExcel(prevSnap));
+        const history = getExcelHistory();
+        setPreviousEntry(history[1]);
+        setCurrentEntry(history[0]);
+      } else {
+        setPreviousProjects([]);
+        setPreviousEntry(undefined);
+        const history = getExcelHistory();
+        setCurrentEntry(history[0]);
+      }
+      setLoading(false);
+    } else if (projectId) {
+      await loadData(projects, projectId);
+    } else if (projects.length > 0) {
+      router.replace(`?project=${encodeURIComponent(projects[0].project_id)}`, { scroll: false });
+    }
+  }
+
+  function handleLoadHistory(id: string) {
+    // After loading the snapshot into localStorage, reload the data
+    void handleReload();
+    // Navigate to portfolio to show updated state
+    router.push('?view=portfolio', { scroll: false });
   }
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
       <Sidebar
         allProjects={allProjects}
-        selectedProjectId={projectId ?? ''}
+        selectedId={selectedId}
         onSelect={handleNavigate}
+        onReload={() => void handleReload()}
+        onLoadHistory={handleLoadHistory}
+      />
+
+      <AIChatPanel
+        dashboardData={data}
+        allProjects={allProjects}
+        isPortfolio={isPortfolio}
+        historicalSnapshots={historicalSnapshots}
       />
 
       <div className="flex-1 overflow-y-auto min-w-0">
@@ -147,6 +235,14 @@ function DashboardInner() {
               </AlertDescription>
             </Alert>
           </div>
+        ) : isPortfolio ? (
+          <PortfolioView
+            projects={allProjects}
+            onSelectProject={handleNavigate}
+            previousProjects={previousProjects}
+            previousEntry={previousEntry}
+            currentEntry={currentEntry}
+          />
         ) : data ? (
           <>
             <ProjectHeader
@@ -154,12 +250,13 @@ function DashboardInner() {
               allProjects={allProjects}
               onNavigate={handleNavigate}
             />
-            <main className="px-6 py-6 space-y-7 max-w-6xl pb-12">
-              <BudgetKpiCards budget={data.budget} />
-              <SuccessCriteriaPanel project={data.project} />
+            <main className="px-6 py-6 space-y-5 max-w-7xl pb-12">
+              <div className="grid grid-cols-2 gap-4">
+                <SuccessCriteriaPanel project={data.project} />
+                <BudgetOverviewChart budget={data.budget} project={data.project} />
+              </div>
+              <IssuesRiskTable issues={data.issues} project={data.project} />
               <MilestoneTimeline milestones={data.milestones} />
-              <BudgetOverviewChart budget={data.budget} />
-              <IssuesRiskTable issues={data.issues} />
             </main>
           </>
         ) : null}

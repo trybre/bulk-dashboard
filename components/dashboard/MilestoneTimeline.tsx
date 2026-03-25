@@ -99,25 +99,25 @@ export function MilestoneTimeline({ milestones }: MilestoneTimelineProps) {
     <Collapsible open={tableOpen} onOpenChange={setTableOpen}>
       <section>
         {/* Section header */}
-        <div className="flex items-center gap-2 mb-3">
-          <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-            Milestones
-          </h2>
-          <Separator className="flex-1" />
-          {/* Summary badges */}
-          <Badge variant="outline" className="gap-1 text-[10px] text-emerald-700 border-emerald-200 bg-emerald-50">
-            <CheckCircle2 className="w-2.5 h-2.5" /> {okCount} done
-          </Badge>
-          <Badge variant="outline" className="gap-1 text-[10px] text-amber-700 border-amber-200 bg-amber-50">
-            <Clock className="w-2.5 h-2.5" /> {inProgressCount} pending
-          </Badge>
-          <CollapsibleTrigger className="flex items-center gap-1 text-[11px] text-blue-500 hover:text-blue-700 font-semibold ml-1">
-            {tableOpen ? <><ChevronUp className="w-3.5 h-3.5" />Hide list</> : <><ChevronDown className="w-3.5 h-3.5" />Show list</>}
-          </CollapsibleTrigger>
+        <div className="bg-teal-700 text-white px-5 py-2.5 rounded-t-lg flex items-center justify-between">
+          <p className="text-[10px] font-bold uppercase tracking-wide">Milestones</p>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <CheckCircle2 className="w-3 h-3 text-teal-300" />
+              <span className="text-[10px] text-teal-200">{okCount} done</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Clock className="w-3 h-3 text-amber-300" />
+              <span className="text-[10px] text-teal-200">{inProgressCount} pending</span>
+            </div>
+            <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-teal-300 hover:text-white font-semibold ml-1">
+              {tableOpen ? <><ChevronUp className="w-3.5 h-3.5" />Hide list</> : <><ChevronDown className="w-3.5 h-3.5" />Show list</>}
+            </CollapsibleTrigger>
+          </div>
         </div>
 
         {/* SVG timeline card */}
-        <Card className="shadow-sm border-gray-100">
+        <Card className="shadow-sm border-teal-100 rounded-tl-none rounded-tr-none">
           <CardContent className="p-5 overflow-x-auto">
             <div className="relative" onMouseLeave={() => setHovered(null)}>
               <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" style={{ minWidth: 480 }}>
@@ -145,7 +145,7 @@ export function MilestoneTimeline({ milestones }: MilestoneTimelineProps) {
 
                   return (
                     <g
-                      key={m.milestone_nr}
+                      key={`${m.project_id}-${m.milestone_nr}`}
                       style={{ cursor: 'pointer' }}
                       onMouseEnter={() => setHovered({ milestone: m, svgX: cx })}
                     >
@@ -230,7 +230,7 @@ export function MilestoneTimeline({ milestones }: MilestoneTimelineProps) {
                 </TableHeader>
                 <TableBody>
                   {sorted.map((m) => (
-                    <TableRow key={m.milestone_nr}>
+                    <TableRow key={`${m.project_id}-${m.milestone_nr}`}>
                       <TableCell className="font-mono text-xs text-gray-400 font-bold">
                         {m.milestone_nr}
                       </TableCell>

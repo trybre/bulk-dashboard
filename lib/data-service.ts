@@ -3,6 +3,13 @@ import { ProjectSchema, type Project } from './schemas/project-schema';
 import { MilestoneSchema, type Milestone } from './schemas/milestone-schema';
 import { BudgetLineSchema, type BudgetLine } from './schemas/budget-schema';
 import { IssueSchema, type Issue } from './schemas/issue-schema';
+import {
+  getStoredExcelData,
+  getProjectsFromExcel,
+  getBudgetFromExcel,
+  getMilestonesFromExcel,
+  getIssuesFromExcel,
+} from './excel-service';
 
 const BASE_PATH = '/data';
 
@@ -38,20 +45,28 @@ async function fetchCsv<T>(
 }
 
 export async function fetchProjects(): Promise<Project[]> {
+  const excel = getStoredExcelData();
+  if (excel) return getProjectsFromExcel(excel);
   return fetchCsv<Project>(`${BASE_PATH}/projects.csv`, ProjectSchema);
 }
 
 export async function fetchMilestones(projectId?: string): Promise<Milestone[]> {
+  const excel = getStoredExcelData();
+  if (excel) return getMilestonesFromExcel(excel, projectId);
   const all = await fetchCsv<Milestone>(`${BASE_PATH}/milestones.csv`, MilestoneSchema);
   return projectId ? all.filter((m) => m.project_id === projectId) : all;
 }
 
 export async function fetchBudget(projectId?: string): Promise<BudgetLine[]> {
+  const excel = getStoredExcelData();
+  if (excel) return getBudgetFromExcel(excel, projectId);
   const all = await fetchCsv<BudgetLine>(`${BASE_PATH}/budget.csv`, BudgetLineSchema);
   return projectId ? all.filter((b) => b.project_id === projectId) : all;
 }
 
 export async function fetchIssues(projectId?: string): Promise<Issue[]> {
+  const excel = getStoredExcelData();
+  if (excel) return getIssuesFromExcel(excel, projectId);
   const all = await fetchCsv<Issue>(`${BASE_PATH}/issues.csv`, IssueSchema);
   return projectId ? all.filter((i) => i.project_id === projectId) : all;
 }
