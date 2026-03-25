@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Project Dashboard",
-  description: "NRC Group project monitoring dashboard",
+  description: "Project monitoring dashboard",
 };
 
 export default function RootLayout({
