@@ -1,8 +1,11 @@
 'use client';
 
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { parsePair, type Project } from '@/lib/schemas/project-schema';
-import { type BudgetLine } from '@/lib/schemas/budget-schema';
+import { formatMnok, type BudgetLine } from '@/lib/schemas/budget-schema';
+import { DollarSign, Wallet, CreditCard, Percent } from 'lucide-react';
 
 interface KpiPanelsProps {
   project: Project;
