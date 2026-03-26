@@ -392,7 +392,7 @@ export function seedDemoHistory(): void {
         project_id: 'ORION-101', project_name: 'Orion Data Centre Phase 1',
         company: 'Bulk Infrastructure ORION-101 AS', project_manager: 'Marte Elise Solberg',
         report_date: '03.02.26', overall_status: 'YELLOW',
-        time_status: 'According to plan', time_comment: 'Structural steel 80% complete. MEP rough-in started levels 1–3. Facade delayed 6 weeks.',
+        time_status: 'Minor delays', time_comment: 'Structural steel 80% complete. MEP rough-in started levels 1–3. Facade delayed 6 weeks.',
         cost_status: 'YELLOW', cost_comment: 'EAC tracking at 1.54 BNOK (+6.2%). Cost reduction plan targeting 30 MNOK.',
         quality_status: 'According to plan', quality_comment: 'QC inspections passing. Punch points on cable tray tolerances being actioned.',
         completion_rate: '71.4', variation_orders: '14',
