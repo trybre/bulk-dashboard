@@ -54,9 +54,19 @@ export const ProjectSchema = z.object({
 export type Project = z.infer<typeof ProjectSchema>;
 
 export function statusToColor(status: string): 'green' | 'yellow' | 'red' {
-  const s = status.toLowerCase();
-  if (s.includes('major deviation') || s === 'red') return 'red';
-  if (s.includes('deviation')) return 'yellow';
+  const s = status.toLowerCase().trim();
+  // Explicit enum values
+  if (s === 'red') return 'red';
+  if (s === 'yellow') return 'yellow';
+  if (s === 'green') return 'green';
+  // Text-based status values
+  if (s.includes('critical') || s.includes('major deviation')) return 'red';
+  if (
+    s.includes('deviation') ||
+    s.includes('delay') ||
+    s.includes('at risk') ||
+    s.includes('minor')
+  ) return 'yellow';
   return 'green';
 }
 
