@@ -1,6 +1,6 @@
 'use client';
 
-import { type Project } from '@/lib/schemas/project-schema';
+import { type Project, statusToColor } from '@/lib/schemas/project-schema';
 import { type HistoryEntry } from '@/lib/excel-service';
 import { TrendingUp, AlertTriangle, CheckCircle2, Clock, Users, ArrowUp, ArrowDown, Minus, GitCompareArrows } from 'lucide-react';
 
@@ -81,10 +81,10 @@ function formatDate(iso: string) {
 }
 
 function deriveStatus(val: string): OStatus {
-  const v = val.toUpperCase();
-  if (v.includes('RED')) return 'RED';
-  if (v.includes('GREEN') || v === 'ACCORDING TO PLAN') return 'GREEN';
-  return 'YELLOW';
+  const color = statusToColor(val);
+  if (color === 'red') return 'RED';
+  if (color === 'yellow') return 'YELLOW';
+  return 'GREEN';
 }
 
 export function PortfolioView({ projects, onSelectProject, previousProjects, previousEntry, currentEntry }: PortfolioViewProps) {
