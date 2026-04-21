@@ -9,7 +9,11 @@ import {
   getBudgetFromExcel,
   getMilestonesFromExcel,
   getIssuesFromExcel,
+  getBaselineData,
 } from './excel-service';
+
+export { getBaselineData } from './excel-service';
+export type { BaselineData } from './schemas/baseline-schema';
 
 const BASE_PATH = '/data';
 

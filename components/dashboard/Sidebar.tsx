@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { LayoutDashboard, FolderKanban, ChevronDown, ChevronRight, History, FileSpreadsheet, Trash2 } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { LayoutDashboard, FolderKanban, ChevronDown, ChevronRight, History, FileSpreadsheet, Trash2, Target, Upload, Loader2, CheckCircle2, AlertCircle, Download, BarChart2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { type Project } from '@/lib/schemas/project-schema';
+import { type BaselineData } from '@/lib/schemas/baseline-schema';
 import { ExcelUpload } from '@/components/dashboard/ExcelUpload';
-import { getStoredExcelData, getExcelHistory, deleteHistoryEntry, loadHistorySnapshot, seedDemoHistory, type HistoryEntry } from '@/lib/excel-service';
+import { getStoredExcelData, getExcelHistory, deleteHistoryEntry, loadHistorySnapshot, seedDemoHistory, seedDemoBaseline, parseBaselineFile, downloadBaselineTemplate, type HistoryEntry } from '@/lib/excel-service';
 
 interface SidebarProps {
   allProjects: Project[];
@@ -15,6 +16,8 @@ interface SidebarProps {
   onSelect: (id: string) => void;
   onReload: () => void;
   onLoadHistory: (id: string) => void;
+  onBaselineLoaded: () => void;
+  baselineData: BaselineData | null;
 }
 
 const statusDot: Record<'RED' | 'YELLOW' | 'GREEN', string> = {
@@ -35,18 +38,49 @@ function formatDate(iso: string) {
   }
 }
 
-export function Sidebar({ allProjects, selectedId, onSelect, onReload, onLoadHistory }: SidebarProps) {
+export function Sidebar({ allProjects, selectedId, onSelect, onReload, onLoadHistory, onBaselineLoaded, baselineData }: SidebarProps) {
   const [currentData, setCurrentData] = useState<ReturnType<typeof getStoredExcelData>>(null);
   const [projectsOpen, setProjectsOpen] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [baselineLoading, setBaselineLoading] = useState(false);
+  const [baselineError, setBaselineError] = useState<string | null>(null);
+  const [baselineSuccess, setBaselineSuccess] = useState(false);
+  const baselineInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBaselineFile = useCallback(async (file: File) => {
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      setBaselineError('Kun .xlsx og .xls filer støttes.');
+      return;
+    }
+    setBaselineLoading(true);
+    setBaselineError(null);
+    setBaselineSuccess(false);
+    try {
+      await parseBaselineFile(file);
+      setBaselineSuccess(true);
+      setTimeout(() => {
+        onBaselineLoaded();
+        setBaselineSuccess(false);
+      }, 800);
+    } catch (e) {
+      setBaselineError(e instanceof Error ? e.message : 'Kunne ikke lese baseline-filen.');
+    } finally {
+      setBaselineLoading(false);
+    }
+  }, [onBaselineLoaded]);
 
   // Read localStorage only on client after mount to avoid SSR hydration mismatch
   useEffect(() => {
     seedDemoHistory();
+    const didSeed = !localStorage.getItem('bulk_dashboard_baseline');
+    seedDemoBaseline();
     setCurrentData(getStoredExcelData());
     setHistory(getExcelHistory());
-  }, []);
+    if (didSeed && localStorage.getItem('bulk_dashboard_baseline')) {
+      onBaselineLoaded();
+    }
+  }, [onBaselineLoaded]);
 
   const isPortfolio = selectedId === '__portfolio__';
 
@@ -96,6 +130,16 @@ export function Sidebar({ allProjects, selectedId, onSelect, onReload, onLoadHis
             <span className="text-xs font-bold flex-1">Portefølje</span>
             {isPortfolio && <ChevronRight className="w-3 h-3 text-teal-400 translate-x-0.5" />}
           </button>
+
+          {/* Gantt nav */}
+          <a
+            href="/gantt"
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-all group text-teal-300/70 hover:bg-teal-800/50 hover:text-teal-100 border border-transparent"
+          >
+            <BarChart2 className="w-4 h-4 shrink-0 text-teal-500/60 group-hover:text-teal-400" />
+            <span className="text-xs font-bold flex-1">Gantt</span>
+            {baselineData && <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" title="Baseline lastet" />}
+          </a>
 
           <Separator className="bg-teal-800/40 my-1" />
 
@@ -221,6 +265,71 @@ export function Sidebar({ allProjects, selectedId, onSelect, onReload, onLoadHis
 
       <Separator className="bg-teal-800/40" />
       <ExcelUpload onDataLoaded={onReload} currentData={currentData} />
+
+      {/* Baseline upload section */}
+      <div className="px-3 py-3 border-t border-teal-800/40">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Target className="w-3 h-3 text-teal-500/70" />
+          <span className="text-[10px] font-semibold text-teal-500/70 uppercase tracking-widest">Baseline</span>
+        </div>
+
+        {baselineData && (
+          <div className="mb-2 flex items-center gap-1.5 bg-teal-800/30 rounded-lg px-2.5 py-1.5">
+            <FileSpreadsheet className="w-3 h-3 text-teal-400 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] text-teal-300 truncate leading-tight">{baselineData.fileName}</p>
+              <p className="text-[9px] text-teal-500/60 leading-none mt-0.5">
+                Satt: {new Date(baselineData.uploadedAt).toLocaleDateString('nb-NO', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!baselineData && (
+          <p className="text-[10px] text-teal-600/60 mb-2">Ingen baseline lastet opp</p>
+        )}
+
+        <button
+          onClick={() => baselineInputRef.current?.click()}
+          disabled={baselineLoading}
+          className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-teal-700/60 hover:border-teal-500/60 hover:bg-teal-800/20 transition-all text-teal-400 hover:text-teal-200 text-[10px] font-medium"
+        >
+          <input
+            ref={baselineInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void handleBaselineFile(file);
+              e.target.value = '';
+            }}
+          />
+          {baselineLoading ? (
+            <><Loader2 className="w-3 h-3 animate-spin" /> Laster inn...</>
+          ) : baselineSuccess ? (
+            <><CheckCircle2 className="w-3 h-3 text-emerald-400" /> Baseline lastet!</>
+          ) : (
+            <><Upload className="w-3 h-3" /> Last opp baseline</>
+          )}
+        </button>
+
+        {baselineError && (
+          <div className="mt-1.5 flex items-start gap-1.5 text-[10px] text-red-400">
+            <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
+            <p>{baselineError}</p>
+          </div>
+        )}
+
+        <button
+          onClick={() => downloadBaselineTemplate()}
+          className="mt-1.5 w-full flex items-center justify-center gap-1.5 text-[10px] text-teal-500 hover:text-teal-300 transition-colors py-1"
+        >
+          <Download className="w-3 h-3" />
+          Last ned baseline-mal
+        </button>
+      </div>
+
       <div className="px-4 py-2 border-t border-teal-800/40">
         <p className="text-[9px] text-teal-600/60 uppercase tracking-widest text-center font-semibold">
           Classification: Private &amp; Confidential

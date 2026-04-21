@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { fetchProjects, fetchDashboardData, type DashboardData } from '@/lib/data-service';
 import { type Project } from '@/lib/schemas/project-schema';
-import { getPreviousSnapshot, getProjectsFromExcel, getExcelHistory, getStoredExcelData, type HistoryEntry, type ExcelData } from '@/lib/excel-service';
+import { type BaselineData } from '@/lib/schemas/baseline-schema';
+import { getPreviousSnapshot, getProjectsFromExcel, getExcelHistory, getStoredExcelData, getBaselineData, type HistoryEntry, type ExcelData } from '@/lib/excel-service';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { ProjectHeader } from '@/components/dashboard/ProjectHeader';
 import { SuccessCriteriaPanel } from '@/components/dashboard/SuccessCriteriaPanel';
@@ -14,9 +15,13 @@ import { BudgetOverviewChart } from '@/components/dashboard/BudgetOverviewChart'
 import { IssuesRiskTable } from '@/components/dashboard/IssuesRiskTable';
 import { PortfolioView } from '@/components/dashboard/PortfolioView';
 import { AIChatPanel } from '@/components/dashboard/AIChatPanel';
+import { BaselineKpiCards } from '@/components/dashboard/BaselineKpiCards';
+import { BaselineMilestoneTable } from '@/components/dashboard/BaselineMilestoneTable';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Target } from 'lucide-react';
 
 function ContentSkeleton() {
   return (
@@ -47,6 +52,84 @@ function ContentSkeleton() {
   );
 }
 
+interface ProjectDetailViewProps {
+  data: DashboardData;
+  allProjects: Project[];
+  baselineData: BaselineData | null;
+  onNavigate: (id: string) => void;
+}
+
+function ProjectDetailView({ data, allProjects, baselineData, onNavigate }: ProjectDetailViewProps) {
+  const hasBaseline = !!baselineData;
+
+  const reportContent = (
+    <main className="px-6 py-6 space-y-5 max-w-7xl pb-12">
+      <div className="grid grid-cols-2 gap-4">
+        <SuccessCriteriaPanel project={data.project} />
+        <BudgetOverviewChart budget={data.budget} project={data.project} />
+      </div>
+      <IssuesRiskTable issues={data.issues} project={data.project} />
+      <MilestoneTimeline milestones={data.milestones} />
+    </main>
+  );
+
+  return (
+    <>
+      <ProjectHeader
+        project={data.project}
+        allProjects={allProjects}
+        onNavigate={onNavigate}
+      />
+      {hasBaseline ? (
+        <Tabs defaultValue="rapport" className="w-full">
+          <div className="bg-white border-b border-gray-100 px-6 pt-3">
+            <TabsList variant="line" className="gap-4">
+              <TabsTrigger value="rapport" className="text-sm font-semibold px-1 pb-2">
+                Rapport
+              </TabsTrigger>
+              <TabsTrigger value="baseline" className="text-sm font-semibold px-1 pb-2 flex items-center gap-1.5">
+                <Target className="w-3.5 h-3.5" /> Mot Baseline
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          <TabsContent value="rapport">
+            {reportContent}
+          </TabsContent>
+          <TabsContent value="baseline">
+            <main className="px-6 py-6 space-y-5 max-w-7xl pb-12">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-2 text-xs text-amber-800">
+                <Target className="w-4 h-4 text-amber-600 shrink-0" />
+                Sammenlignet mot baseline: <span className="font-bold">{baselineData!.fileName}</span>
+                &nbsp;— satt {new Date(baselineData!.uploadedAt).toLocaleDateString('nb-NO', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+              </div>
+              <BaselineKpiCards
+                project={data.project}
+                budget={data.budget}
+                milestones={data.milestones}
+                baselineData={baselineData!}
+              />
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-6 py-3.5 border-b border-gray-100 bg-gray-50/60">
+                  <h2 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Milepælsavvik mot baseline</h2>
+                </div>
+                <div className="px-2">
+                  <BaselineMilestoneTable
+                    projectId={data.project.project_id}
+                    milestones={data.milestones}
+                    baselineData={baselineData!}
+                  />
+                </div>
+              </div>
+            </main>
+          </TabsContent>
+        </Tabs>
+      ) : (
+        reportContent
+      )}
+    </>
+  );
+}
+
 function DashboardInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -59,6 +142,7 @@ function DashboardInner() {
   const [previousEntry, setPreviousEntry] = useState<HistoryEntry | undefined>();
   const [currentEntry, setCurrentEntry] = useState<HistoryEntry | undefined>();
   const [historicalSnapshots, setHistoricalSnapshots] = useState<{ entry: HistoryEntry; data: ExcelData }[]>([]);
+  const [baselineData, setBaselineData] = useState<BaselineData | null>(null);
 
   const view = searchParams.get('view');
   const projectId = searchParams.get('project');
@@ -95,6 +179,9 @@ function DashboardInner() {
         return;
       }
       setAllProjects(projects);
+
+      // Load baseline data
+      setBaselineData(getBaselineData());
 
       // Load all history snapshots for AI context
       const history = getExcelHistory();
@@ -158,6 +245,10 @@ function DashboardInner() {
     }
   }
 
+  function handleBaselineLoaded() {
+    setBaselineData(getBaselineData());
+  }
+
   async function handleReload() {
     const projects = await fetchProjects();
     setAllProjects(projects);
@@ -198,6 +289,8 @@ function DashboardInner() {
         onSelect={handleNavigate}
         onReload={() => void handleReload()}
         onLoadHistory={handleLoadHistory}
+        onBaselineLoaded={handleBaselineLoaded}
+        baselineData={baselineData}
       />
 
       <AIChatPanel
@@ -242,23 +335,16 @@ function DashboardInner() {
             previousProjects={previousProjects}
             previousEntry={previousEntry}
             currentEntry={currentEntry}
+            baselineData={baselineData}
+            currentExcelData={getStoredExcelData()}
           />
         ) : data ? (
-          <>
-            <ProjectHeader
-              project={data.project}
-              allProjects={allProjects}
-              onNavigate={handleNavigate}
-            />
-            <main className="px-6 py-6 space-y-5 max-w-7xl pb-12">
-              <div className="grid grid-cols-2 gap-4">
-                <SuccessCriteriaPanel project={data.project} />
-                <BudgetOverviewChart budget={data.budget} project={data.project} />
-              </div>
-              <IssuesRiskTable issues={data.issues} project={data.project} />
-              <MilestoneTimeline milestones={data.milestones} />
-            </main>
-          </>
+          <ProjectDetailView
+            data={data}
+            allProjects={allProjects}
+            baselineData={baselineData}
+            onNavigate={handleNavigate}
+          />
         ) : null}
       </div>
     </div>

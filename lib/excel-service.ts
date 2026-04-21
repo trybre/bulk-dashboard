@@ -10,9 +10,11 @@ import { ProjectSchema, type Project } from './schemas/project-schema';
 import { BudgetLineSchema, type BudgetLine } from './schemas/budget-schema';
 import { MilestoneSchema, type Milestone } from './schemas/milestone-schema';
 import { IssueSchema, type Issue } from './schemas/issue-schema';
+import { BaselineProjectSchema, BaselineMilestoneSchema, type BaselineData } from './schemas/baseline-schema';
 
 const STORAGE_KEY = 'bulk_dashboard_excel';
 const HISTORY_KEY = 'bulk_dashboard_history';
+const BASELINE_KEY = 'bulk_dashboard_baseline';
 const MAX_HISTORY = 20;
 
 export interface ExcelData {
@@ -89,6 +91,121 @@ export function deleteHistoryEntry(id: string): void {
   localStorage.removeItem(`bulk_dashboard_snapshot_${id}`);
   const history = getExcelHistory().filter((e) => e.id !== id);
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+}
+
+// ─── Baseline management ──────────────────────────────────────────────────────
+
+export function getBaselineData(): BaselineData | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(BASELINE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as BaselineData;
+  } catch {
+    localStorage.removeItem(BASELINE_KEY);
+    return null;
+  }
+}
+
+export function clearBaseline(): void {
+  if (typeof window !== 'undefined') localStorage.removeItem(BASELINE_KEY);
+}
+
+export async function parseBaselineFile(file: File): Promise<BaselineData> {
+  const buffer = await file.arrayBuffer();
+  const wb = XLSX.read(buffer, { type: 'array', cellDates: false });
+
+  const projectRows = sheetToRows(wb, 'Project Targets');
+  const milestoneRows = sheetToRows(wb, 'Milestone Plan');
+
+  if (projectRows.length === 0) {
+    throw new Error(
+      'Fant ingen data i "Project Targets"-fanen. Sjekk at fanene heter: "Project Targets" og "Milestone Plan".'
+    );
+  }
+
+  const projects = projectRows.flatMap((row) => {
+    const r = BaselineProjectSchema.safeParse(row);
+    if (r.success) return [r.data];
+    console.warn('Baseline project row validation failed:', r.error, row);
+    return [];
+  });
+
+  const milestones = milestoneRows.flatMap((row) => {
+    const r = BaselineMilestoneSchema.safeParse(row);
+    if (r.success) return [r.data];
+    console.warn('Baseline milestone row validation failed:', r.error, row);
+    return [];
+  });
+
+  if (projects.length === 0) {
+    throw new Error(
+      'Ingen gyldige prosjektlinjer funnet i baseline-filen. Sjekk at kolonnenavnene stemmer med malen.'
+    );
+  }
+
+  const data: BaselineData = {
+    projects,
+    milestones,
+    uploadedAt: new Date().toISOString(),
+    fileName: file.name,
+  };
+
+  try {
+    localStorage.setItem(BASELINE_KEY, JSON.stringify(data));
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+      throw new Error('Ikke nok lagringsplass i nettleseren. Slett noen historiske rapporter og prøv igjen.');
+    }
+    throw e;
+  }
+
+  return data;
+}
+
+export function downloadBaselineTemplate(): void {
+  const wb = XLSX.utils.book_new();
+
+  const projectHeaders = [
+    'project_id',
+    // Schedule
+    'planned_completion_rate', 'planned_time_status',
+    // Cost
+    'planned_budget_nok', 'planned_spend_to_date_nok', 'planned_eac_nok', 'planned_variation_orders',
+    // Quality
+    'planned_quality_status', 'planned_punch_registered', 'planned_punch_cleared', 'planned_mc_inspections', 'planned_deviations',
+    // H&S
+    'planned_injuries', 'planned_near_misses', 'planned_hipo', 'planned_headcount', 'planned_hours_worked',
+    // Overall
+    'planned_rag_status',
+  ];
+  const projectExample = [
+    'PROJ-001',
+    '25', 'GREEN',
+    '1680000000', '420000000', '1680000000', '2',
+    'GREEN', '80', '75', '8', '0',
+    '0', '50', '0', '20', '20000',
+    'GREEN',
+  ];
+
+  const milestoneHeaders = ['project_id', 'milestone_nr', 'milestone_name', 'planned_date'];
+  const milestoneExample1 = ['PROJ-001', '1', 'Project start', '2025-01-01'];
+  const milestoneExample2 = ['PROJ-001', '2', 'Design complete', '2026-06-01'];
+
+  const addSheet = (name: string, headers: string[], ...rows: string[][]) => {
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const range = XLSX.utils.decode_range(ws['!ref'] ?? 'A1');
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: 0, c })];
+      if (cell) cell.s = { font: { bold: true } };
+    }
+    XLSX.utils.book_append_sheet(wb, ws, name);
+  };
+
+  addSheet('Project Targets', projectHeaders, projectExample);
+  addSheet('Milestone Plan', milestoneHeaders, milestoneExample1, milestoneExample2);
+
+  XLSX.writeFile(wb, 'bulk_baseline_template.xlsx');
 }
 
 function saveToHistory(entry: HistoryEntry, data: ExcelData): void {
@@ -554,6 +671,231 @@ export function seedDemoHistory(): void {
     { id: OLD_ID, fileName: snapshotOld.fileName, uploadedAt: snapshotOld.uploadedAt },
   ];
   localStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory));
+}
+
+// ─── Seed demo baseline (optimistic plan before slippage) ────────────────────
+
+/**
+ * Seeds a synthetic baseline for all 4 demo projects.
+ * Planned dates are 2–6 weeks earlier than current milestone dates,
+ * representing the original programme agreed at contract award.
+ * Budget targets use original contract sums (before change orders).
+ * Safe to call multiple times — seeds only when missing.
+ */
+export function seedDemoBaseline(): void {
+  if (typeof window === 'undefined') return;
+
+  const SEED_ID = 'demo_baseline_v2';
+  // Skip if this exact seed version is already applied
+  if (localStorage.getItem(`bulk_dashboard_baseline_seeded_${SEED_ID}`)) return;
+  // Clean up old seed version flags so we always upgrade stale demo data
+  localStorage.removeItem('bulk_dashboard_baseline_seeded_demo_baseline_v1');
+  // Only overwrite if no baseline is stored, OR if the stored one is a previous demo seed
+  // (i.e. the user hasn't uploaded their own real baseline)
+  const existingRaw = localStorage.getItem(BASELINE_KEY);
+  if (existingRaw) {
+    try {
+      const existing = JSON.parse(existingRaw) as BaselineData;
+      // If the stored baseline has the new fields (planned_eac_nok), it's already up to date
+      if (existing.projects?.[0] && 'planned_eac_nok' in existing.projects[0]) return;
+    } catch { /* corrupt — overwrite */ }
+  }
+
+  const data: BaselineData = {
+    fileName: 'Baseline_Kontraktsplan_2025.xlsx',
+    uploadedAt: new Date('2025-10-01T08:00:00Z').toISOString(),
+    projects: [
+      {
+        // NOVA-305 — E01 Nova Edge 1
+        // Baseline set at contract award Oct 2025. Expected state by Feb 2026 report.
+        project_id: 'NOVA-305',
+        // Schedule
+        planned_completion_rate: 40,          // 40% complete by Feb 2026
+        planned_time_status: 'GREEN' as const,
+        // Cost
+        planned_budget_nok: 1680000000,       // original contract sum (no VOs yet)
+        planned_spend_to_date_nok: 350000000, // ~20.8% of budget spent
+        planned_eac_nok: 1680000000,          // on budget at baseline
+        planned_variation_orders: 1,          // minor VO expected
+        // Quality
+        planned_quality_status: 'GREEN' as const,
+        planned_punch_registered: 100,
+        planned_punch_cleared: 90,
+        planned_mc_inspections: 8,
+        planned_deviations: 0,
+        // H&S — based on ~26 workers, ~28 600 hrs worked
+        planned_injuries: 0,
+        planned_near_misses: 70,              // ~2.5/worker
+        planned_hipo: 0,
+        planned_headcount: 26,
+        planned_hours_worked: 28600,
+        // Overall
+        planned_rag_status: 'GREEN' as const,
+      },
+      {
+        // TITAN-202 — S01 Titan Park 1
+        // Largest active site, ~38 workers, well advanced at baseline date
+        project_id: 'TITAN-202',
+        // Schedule
+        planned_completion_rate: 58,
+        planned_time_status: 'GREEN' as const,
+        // Cost
+        planned_budget_nok: 2080000000,
+        planned_spend_to_date_nok: 580000000, // ~27.9% of budget
+        planned_eac_nok: 2080000000,
+        planned_variation_orders: 4,
+        // Quality
+        planned_quality_status: 'GREEN' as const,
+        planned_punch_registered: 320,
+        planned_punch_cleared: 295,
+        planned_mc_inspections: 20,
+        planned_deviations: 1,
+        // H&S — ~38 workers, ~74 800 hrs worked
+        planned_injuries: 0,
+        planned_near_misses: 200,
+        planned_hipo: 2,
+        planned_headcount: 38,
+        planned_hours_worked: 74800,
+        // Overall
+        planned_rag_status: 'GREEN' as const,
+      },
+      {
+        // ORION-101 — Orion Data Centre Phase 1
+        // Most advanced project; nearly complete by baseline period
+        project_id: 'ORION-101',
+        // Schedule
+        planned_completion_rate: 78,
+        planned_time_status: 'GREEN' as const,
+        // Cost
+        planned_budget_nok: 1400000000,
+        planned_spend_to_date_nok: 520000000, // ~37.1% of budget
+        planned_eac_nok: 1400000000,
+        planned_variation_orders: 8,
+        // Quality
+        planned_quality_status: 'GREEN' as const,
+        planned_punch_registered: 720,
+        planned_punch_cleared: 680,
+        planned_mc_inspections: 45,
+        planned_deviations: 2,
+        // H&S — ~56 workers, ~112 400 hrs worked
+        planned_injuries: 0,
+        planned_near_misses: 420,
+        planned_hipo: 5,
+        planned_headcount: 56,
+        planned_hours_worked: 112400,
+        // Overall
+        planned_rag_status: 'GREEN' as const,
+      },
+      {
+        // HELIOS-404 — Helios Hyperscale Campus Ph1
+        // Least advanced; sub-contractor insolvency was unforeseen at baseline
+        project_id: 'HELIOS-404',
+        // Schedule
+        planned_completion_rate: 35,
+        planned_time_status: 'GREEN' as const,
+        // Cost
+        planned_budget_nok: 2450000000,
+        planned_spend_to_date_nok: 380000000, // ~15.5% of budget
+        planned_eac_nok: 2450000000,
+        planned_variation_orders: 3,
+        // Quality
+        planned_quality_status: 'GREEN' as const,
+        planned_punch_registered: 55,
+        planned_punch_cleared: 45,
+        planned_mc_inspections: 5,
+        planned_deviations: 0,
+        // H&S — ~18 workers, ~16 400 hrs worked
+        planned_injuries: 0,
+        planned_near_misses: 25,
+        planned_hipo: 0,
+        planned_headcount: 18,
+        planned_hours_worked: 16400,
+        // Overall
+        planned_rag_status: 'GREEN' as const,
+      },
+    ],
+    milestones: [
+      // ── NOVA-305 ── Original programme: 2–4 weeks earlier on upcoming milestones
+      { project_id: 'NOVA-305', milestone_nr: 1, milestone_name: 'Project governance and organisation established', planned_date: '2025-03-10' },
+      { project_id: 'NOVA-305', milestone_nr: 2, milestone_name: 'Site selection and land acquisition complete', planned_date: '2025-05-22' },
+      { project_id: 'NOVA-305', milestone_nr: 3, milestone_name: 'Geotechnical and environmental investigation complete', planned_date: '2025-07-14' },
+      { project_id: 'NOVA-305', milestone_nr: 4, milestone_name: 'Concept design (Stage 2) approved by Board', planned_date: '2025-09-04' },
+      { project_id: 'NOVA-305', milestone_nr: 5, milestone_name: 'Planning permission (rammesøknad) granted', planned_date: '2025-11-07' }, // 3w earlier
+      { project_id: 'NOVA-305', milestone_nr: 6, milestone_name: 'Main contractor (NordFjord Bygg JV) contract signed', planned_date: '2025-12-19' }, // 3w earlier
+      { project_id: 'NOVA-305', milestone_nr: 7, milestone_name: 'Site mobilisation and groundworks start', planned_date: '2026-01-05' }, // 3w earlier
+      { project_id: 'NOVA-305', milestone_nr: 8, milestone_name: 'Piling and foundation works complete', planned_date: '2026-04-10' }, // 4w earlier
+      { project_id: 'NOVA-305', milestone_nr: 9, milestone_name: 'Structural steel erection complete', planned_date: '2026-08-21' }, // 4w earlier
+      { project_id: 'NOVA-305', milestone_nr: 10, milestone_name: 'Building weathertight — facade and roof closed', planned_date: '2026-11-06' }, // 4w earlier
+      { project_id: 'NOVA-305', milestone_nr: 11, milestone_name: 'MEP rough-in complete all levels', planned_date: '2027-01-22' }, // 4w earlier
+      { project_id: 'NOVA-305', milestone_nr: 12, milestone_name: 'HV switchgear and generator yard energised', planned_date: '2027-03-13' }, // 4w earlier
+      { project_id: 'NOVA-305', milestone_nr: 13, milestone_name: 'Commissioning level 2 complete', planned_date: '2027-04-25' }, // 4w earlier
+      { project_id: 'NOVA-305', milestone_nr: 14, milestone_name: 'Commissioning level 3 — integrated systems test', planned_date: '2027-06-13' }, // 4w earlier
+      { project_id: 'NOVA-305', milestone_nr: 15, milestone_name: 'White Space ready — Phase 1 (12 MW IT load)', planned_date: '2027-08-01' }, // 4w earlier
+      { project_id: 'NOVA-305', milestone_nr: 16, milestone_name: 'Customer acceptance and handover Phase 1', planned_date: '2027-09-05' }, // 4w earlier
+      { project_id: 'NOVA-305', milestone_nr: 17, milestone_name: 'HV upgrade complete — full 30 MW available', planned_date: '2027-12-19' }, // 4w earlier
+      { project_id: 'NOVA-305', milestone_nr: 18, milestone_name: 'White Space ready — full capacity Phase 2', planned_date: '2028-03-28' }, // 4w earlier
+
+      // ── TITAN-202 ── Original programme: 2–3 weeks earlier on key milestones
+      { project_id: 'TITAN-202', milestone_nr: 1, milestone_name: 'Project kick-off and governance framework established', planned_date: '2024-10-01' },
+      { project_id: 'TITAN-202', milestone_nr: 2, milestone_name: 'Site acquisition and geotechnical survey complete', planned_date: '2025-01-14' },
+      { project_id: 'TITAN-202', milestone_nr: 3, milestone_name: 'Stage 2 concept design approved by Board', planned_date: '2025-03-20' },
+      { project_id: 'TITAN-202', milestone_nr: 4, milestone_name: 'Planning permission granted (rammesøknad)', planned_date: '2025-06-05' },
+      { project_id: 'TITAN-202', milestone_nr: 5, milestone_name: 'Main contractor (NordBuild Consortium) contract signed', planned_date: '2025-08-22' },
+      { project_id: 'TITAN-202', milestone_nr: 6, milestone_name: 'Site mobilisation and groundworks start', planned_date: '2025-09-15' },
+      { project_id: 'TITAN-202', milestone_nr: 7, milestone_name: 'Foundation and basement slab complete', planned_date: '2025-12-12' },
+      { project_id: 'TITAN-202', milestone_nr: 8, milestone_name: 'Structural frame floors 1–3 complete', planned_date: '2026-01-16' }, // 3w earlier (actually completed 06.02.26, so +21 days late)
+      { project_id: 'TITAN-202', milestone_nr: 9, milestone_name: 'Structural frame floors 4–6 complete', planned_date: '2026-03-28' }, // 3w earlier
+      { project_id: 'TITAN-202', milestone_nr: 10, milestone_name: 'Building weathertight — facade and roof closed', planned_date: '2026-06-12' }, // 3w earlier
+      { project_id: 'TITAN-202', milestone_nr: 11, milestone_name: 'MEP rough-in complete all levels', planned_date: '2026-08-22' }, // 3w earlier
+      { project_id: 'TITAN-202', milestone_nr: 12, milestone_name: 'Generator yard and HV switchgear energised (Phase 1 — 20 MW)', planned_date: '2026-10-08' }, // 3w earlier
+      { project_id: 'TITAN-202', milestone_nr: 13, milestone_name: 'Commissioning level 2 complete', planned_date: '2026-10-30' }, // 3w earlier
+      { project_id: 'TITAN-202', milestone_nr: 14, milestone_name: 'Commissioning level 3 — integrated systems test', planned_date: '2026-12-18' }, // 3w earlier
+      { project_id: 'TITAN-202', milestone_nr: 15, milestone_name: 'White Space ready — Phase 1 (8 MW IT load)', planned_date: '2027-01-24' }, // 3w earlier
+      { project_id: 'TITAN-202', milestone_nr: 16, milestone_name: 'Customer acceptance and handover Phase 1', planned_date: '2027-03-07' }, // 3w earlier
+      { project_id: 'TITAN-202', milestone_nr: 17, milestone_name: 'HV upgrade complete — full 40 MW available', planned_date: '2027-06-09' }, // 3w earlier
+      { project_id: 'TITAN-202', milestone_nr: 18, milestone_name: 'White Space ready — Phase 2 (full capacity)', planned_date: '2027-08-25' }, // 3w earlier
+
+      // ── ORION-101 ── Already running behind; original programme was more aggressive
+      { project_id: 'ORION-101', milestone_nr: 1, milestone_name: 'Project kick-off and governance established', planned_date: '2024-09-15' },
+      { project_id: 'ORION-101', milestone_nr: 2, milestone_name: 'Site survey and geotechnical investigation complete', planned_date: '2024-11-30' },
+      { project_id: 'ORION-101', milestone_nr: 3, milestone_name: 'Concept design approved by Board', planned_date: '2025-01-20' },
+      { project_id: 'ORION-101', milestone_nr: 4, milestone_name: 'Planning permission granted', planned_date: '2025-04-10' },
+      { project_id: 'ORION-101', milestone_nr: 5, milestone_name: 'Main contractor EPCI contract signed', planned_date: '2025-06-01' },
+      { project_id: 'ORION-101', milestone_nr: 6, milestone_name: 'Site mobilisation and groundworks start', planned_date: '2025-07-14' },
+      { project_id: 'ORION-101', milestone_nr: 7, milestone_name: 'Foundation and basement slab complete', planned_date: '2025-10-10' }, // 3w earlier
+      { project_id: 'ORION-101', milestone_nr: 8, milestone_name: 'Structural steel erection complete', planned_date: '2026-01-30' }, // 4w earlier (pending → 28 days overdue by Apr 21)
+      { project_id: 'ORION-101', milestone_nr: 9, milestone_name: 'Building weathertight (facade and roof)', planned_date: '2026-04-10' }, // 5w earlier
+      { project_id: 'ORION-101', milestone_nr: 10, milestone_name: 'MEP rough-in complete all levels', planned_date: '2026-05-29' }, // 4w earlier
+      { project_id: 'ORION-101', milestone_nr: 11, milestone_name: 'Generator yard and HV switchgear energised', planned_date: '2026-07-17' }, // 4w earlier
+      { project_id: 'ORION-101', milestone_nr: 12, milestone_name: 'Commissioning level 2 complete', planned_date: '2026-08-28' }, // 4w earlier
+      { project_id: 'ORION-101', milestone_nr: 13, milestone_name: 'Commissioning level 3 - integrated systems test', planned_date: '2026-10-09' }, // 4w earlier
+      { project_id: 'ORION-101', milestone_nr: 14, milestone_name: 'White Space ready - Phase 1 (10 MW IT load)', planned_date: '2026-11-14' }, // 4w earlier
+      { project_id: 'ORION-101', milestone_nr: 15, milestone_name: 'Customer acceptance and handover', planned_date: '2026-12-26' }, // 5w earlier
+
+      // ── HELIOS-404 ── Worst slippage: 6–9 weeks earlier on key milestones
+      { project_id: 'HELIOS-404', milestone_nr: 1, milestone_name: 'Project governance and organisation established', planned_date: '2025-01-15' },
+      { project_id: 'HELIOS-404', milestone_nr: 2, milestone_name: 'Site acquisition and geotechnical survey complete', planned_date: '2025-04-03' },
+      { project_id: 'HELIOS-404', milestone_nr: 3, milestone_name: 'Stage 2 concept design approved by Board', planned_date: '2025-06-19' },
+      { project_id: 'HELIOS-404', milestone_nr: 4, milestone_name: 'Planning permission granted (rammesøknad)', planned_date: '2025-08-07' }, // 4w earlier
+      { project_id: 'HELIOS-404', milestone_nr: 5, milestone_name: 'Main contractor (NordFabrikk Group) contract signed', planned_date: '2025-10-02' }, // 4w earlier
+      { project_id: 'HELIOS-404', milestone_nr: 6, milestone_name: 'Site mobilisation and groundworks start', planned_date: '2025-10-20' }, // 4w earlier
+      { project_id: 'HELIOS-404', milestone_nr: 7, milestone_name: 'Foundation and basement slab complete', planned_date: '2025-12-19' }, // 9w earlier — sub-contractor insolvency hit here
+      { project_id: 'HELIOS-404', milestone_nr: 8, milestone_name: 'Structural frame floors 1–4 complete', planned_date: '2026-03-20' }, // 12w earlier
+      { project_id: 'HELIOS-404', milestone_nr: 9, milestone_name: 'Structural frame floors 5–8 complete', planned_date: '2026-06-12' }, // 12w earlier
+      { project_id: 'HELIOS-404', milestone_nr: 10, milestone_name: 'Building weathertight — facade and roof closed', planned_date: '2026-09-04' }, // 12w earlier
+      { project_id: 'HELIOS-404', milestone_nr: 11, milestone_name: 'MEP rough-in complete all levels', planned_date: '2026-12-11' }, // 12w earlier
+      { project_id: 'HELIOS-404', milestone_nr: 12, milestone_name: 'HV switchgear and generator yard energised', planned_date: '2027-02-19' }, // 12w earlier
+      { project_id: 'HELIOS-404', milestone_nr: 13, milestone_name: 'Commissioning Phase 1 — 20 MW IT load ready', planned_date: '2027-05-23' }, // 13w earlier
+      { project_id: 'HELIOS-404', milestone_nr: 14, milestone_name: 'Customer acceptance and handover Phase 1', planned_date: '2027-07-04' }, // 14w earlier
+    ],
+  };
+
+  try {
+    localStorage.setItem(BASELINE_KEY, JSON.stringify(data));
+    localStorage.setItem(`bulk_dashboard_baseline_seeded_${SEED_ID}`, '1');
+  } catch {
+    // Quota exceeded — skip seeding silently
+  }
 }
 
 // ─── Generate a blank template .xlsx ─────────────────────────────────────────

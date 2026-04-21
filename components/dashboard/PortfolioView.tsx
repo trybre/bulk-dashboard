@@ -1,8 +1,10 @@
 'use client';
 
 import { type Project, statusToColor } from '@/lib/schemas/project-schema';
-import { type HistoryEntry } from '@/lib/excel-service';
-import { TrendingUp, AlertTriangle, CheckCircle2, Clock, Users, ArrowUp, ArrowDown, Minus, GitCompareArrows } from 'lucide-react';
+import { type BaselineData } from '@/lib/schemas/baseline-schema';
+import { type HistoryEntry, type ExcelData, getBudgetFromExcel, getMilestonesFromExcel } from '@/lib/excel-service';
+import { TrendingUp, AlertTriangle, CheckCircle2, Clock, Users, ArrowUp, ArrowDown, Minus, GitCompareArrows, Target } from 'lucide-react';
+import { BaselineDeviationCells } from '@/components/dashboard/BaselineDeviationCells';
 
 type OStatus = 'RED' | 'YELLOW' | 'GREEN';
 
@@ -12,6 +14,8 @@ interface PortfolioViewProps {
   previousProjects?: Project[];
   previousEntry?: HistoryEntry;
   currentEntry?: HistoryEntry;
+  baselineData?: BaselineData | null;
+  currentExcelData?: ExcelData | null;
 }
 
 const statusDot: Record<OStatus, string> = {
@@ -87,7 +91,7 @@ function deriveStatus(val: string): OStatus {
   return 'GREEN';
 }
 
-export function PortfolioView({ projects, onSelectProject, previousProjects, previousEntry, currentEntry }: PortfolioViewProps) {
+export function PortfolioView({ projects, onSelectProject, previousProjects, previousEntry, currentEntry, baselineData, currentExcelData }: PortfolioViewProps) {
   const total = projects.length;
   const green = projects.filter((p) => p.overall_status === 'GREEN').length;
   const yellow = projects.filter((p) => p.overall_status === 'YELLOW').length;
@@ -144,6 +148,17 @@ export function PortfolioView({ projects, onSelectProject, previousProjects, pre
               Sammenligner{currentEntry ? ` «${currentEntry.fileName}»` : ''} med forrige rapport:
               {' '}<span className="font-bold">«{previousEntry.fileName}»</span>
               {' '}({formatDate(previousEntry.uploadedAt)})
+            </p>
+          </div>
+        )}
+
+        {/* Baseline banner */}
+        {baselineData && (
+          <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+            <Target className="w-4 h-4 text-amber-600 shrink-0" />
+            <p className="text-xs text-amber-800 font-medium">
+              Baseline aktiv: <span className="font-bold">«{baselineData.fileName}»</span>
+              {' '}— satt {formatDate(baselineData.uploadedAt)}. Avvikskolonner vises til høyre i tabellen.
             </p>
           </div>
         )}
@@ -289,7 +304,25 @@ export function PortfolioView({ projects, onSelectProject, previousProjects, pre
                   {hasPrev && (
                     <th className="text-right text-[10px] font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Δ</th>
                   )}
+                  {baselineData && (
+                    <>
+                      <th className="text-center text-[10px] font-semibold text-teal-600 uppercase tracking-wider px-3 py-3 border-l border-teal-100 bg-teal-50/40" colSpan={4}>
+                        <span className="flex items-center justify-center gap-1">
+                          <Target className="w-3 h-3" /> vs. Baseline
+                        </span>
+                      </th>
+                    </>
+                  )}
                 </tr>
+                {baselineData && (
+                  <tr className="border-b border-gray-100 bg-teal-50/20">
+                    <th colSpan={hasPrev ? 8 : 7} />
+                    <th className="text-center text-[9px] font-semibold text-teal-500 uppercase tracking-wider px-3 py-1.5 border-l border-teal-100">Forsinkelse</th>
+                    <th className="text-center text-[9px] font-semibold text-teal-500 uppercase tracking-wider px-3 py-1.5">Kostnad %</th>
+                    <th className="text-center text-[9px] font-semibold text-teal-500 uppercase tracking-wider px-3 py-1.5">Ferdigstillelse</th>
+                    <th className="text-center text-[9px] font-semibold text-teal-500 uppercase tracking-wider px-3 py-1.5">RAG</th>
+                  </tr>
+                )}
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {projects.map((p) => {
@@ -345,6 +378,22 @@ export function PortfolioView({ projects, onSelectProject, previousProjects, pre
                             ? <DeltaBadge delta={completionDelta} />
                             : <span className="text-[10px] text-gray-300">Ny</span>}
                         </td>
+                      )}
+                      {baselineData && currentExcelData && (
+                        <BaselineDeviationCells
+                          project={p}
+                          budget={getBudgetFromExcel(currentExcelData, p.project_id)}
+                          milestones={getMilestonesFromExcel(currentExcelData, p.project_id)}
+                          baselineData={baselineData}
+                        />
+                      )}
+                      {baselineData && !currentExcelData && (
+                        <>
+                          <td className="px-3 py-3.5 text-center"><span className="text-[10px] text-gray-300">–</span></td>
+                          <td className="px-3 py-3.5 text-center"><span className="text-[10px] text-gray-300">–</span></td>
+                          <td className="px-3 py-3.5 text-center"><span className="text-[10px] text-gray-300">–</span></td>
+                          <td className="px-3 py-3.5 text-center"><span className="text-[10px] text-gray-300">–</span></td>
+                        </>
                       )}
                     </tr>
                   );
